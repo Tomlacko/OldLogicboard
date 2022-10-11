@@ -130,6 +130,7 @@ $(document).ready(function() {
 	
 	/*-----------------------------SETUP-------------------------------------------------------------*/
 	
+	var fileVersion = 4;
 	var canvas = document.getElementById("canvas");
 	var ctx = canvas.getContext("2d");
 	var zoom = 1;
@@ -156,13 +157,13 @@ $(document).ready(function() {
 	var lineLast = false;
 	
 	var nodes = [];
-	var nNodes = {nText:0, nSwitch:0, nButton:0, nSource:0, nOr:0, nAnd:0, nNot:0, nDelay:0, nOutput:0, nLine:0};
 	var lines = [];
 	var tickSpeed = 10;
 	var mouseDelay = 10;
 	var selected = "s";
 	var state = "edit";
 	var TimeoutID = 0;
+	var ticks = 0;
 	var unsaved = false;
 	
 	var fontSize = 16;
@@ -182,7 +183,7 @@ $(document).ready(function() {
 	var defaultHeight = 40;
 	
 	var lastDelay = 5;
-	var lastPulser = Math.round(1000/tickSpeed);
+	var lastPulser = 5;
 	
 	//get device
 	var isMobile = function() {
@@ -228,31 +229,22 @@ $(document).ready(function() {
 	$("#load").on("click", function() {
 		if(state!=="edit") stopSimulation();
 		$("#overlay, #popup_load").removeClass("hidden");
+		$("#pasteImport").focus();
 	});
 	
 	//show download project
 	$("#download").on("click", function() {
 		if(state!=="edit") stopSimulation();
 		$("#overlay, #popup_download").removeClass("hidden");
-	});
-	
-	//DOWNLOAD PROJECT
-	$("#downloadButton").on("click", function() {
-		var filename=$("#downloadName").val();
-		if(filename==false || filename==="" || filename==null) return;
-		else if(filename.length>50) alert("The file name is too long!");
-		else {
-			downloadProject(filename+".lgb", btoa(JSON.stringify([nodes, lines, canvasX, canvasY, zoom])));
-			$("#overlay, #popup_download").addClass("hidden");
-			unsaved=false;
-		}
+		$("#downloadName").focus();
 	});
 	
 	//show save project
 	$("#save").on("click", function() {
 		if(state!=="edit") stopSimulation();
 		$("#overlay, #popup_save").removeClass("hidden");
-		$("#exportSave").val(btoa(JSON.stringify([nodes, lines, canvasX, canvasY, zoom])));
+		$("#exportSave").val(btoa(JSON.stringify([nodes, lines, [fileVersion, canvasX, canvasY, zoom, tickSpeed]])));
+		$("#exportSave").focus();
 	});
 	
 	//clipboard copy
@@ -264,12 +256,23 @@ $(document).ready(function() {
 		}
 	});
 	
+	//DOWNLOAD PROJECT
+	$("#downloadButton").on("click", function() {
+		var filename=$("#downloadName").val();
+		if(filename==false || filename==="" || filename==null) return;
+		else if(filename.length>50) alert("The file name is too long!");
+		else {
+			downloadProject(filename+".lgb", btoa(JSON.stringify([nodes, lines, [fileVersion, canvasX, canvasY, zoom, tickSpeed]])));
+			$("#overlay, #popup_download").addClass("hidden");
+			unsaved=false;
+		}
+	});
+	
 	//load project from file button
 	$("#inputFile").change(function() {
 		var file=document.getElementById("inputFile").files[0];
 		var inp=$("#inputFile");
 		inp.replaceWith(inp=inp.clone(true));
-		if(unsaved) if(!confirm("There are unsaved changes in your current project.\nAre you sure you want to load a different one?")) return false;
 		if(file.name.slice(-4)!==".lgb") alert("Unsupported file type!");
 		else if(file.size>50000000) alert("File is too big!");
 		else {
@@ -287,7 +290,6 @@ $(document).ready(function() {
 	$("#pasteButton").on("click", function() {
 		var filedata = $("#pasteImport").val();
 		if(filedata==="" || filedata==null || filedata==false) return false;
-		if(unsaved) if(!confirm("There are unsaved changes in your current project.\nAre you sure you want to load a different one?")) return false;
 		if(loadFile(filedata)) $(".popup, #overlay").addClass("hidden");
 	});
 
@@ -309,7 +311,6 @@ $(document).ready(function() {
 		e.preventDefault();
 		$("#fileOverlay").stop();
 		$("#fileOverlay").css("opacity",0).addClass("hidden");
-		if(unsaved) if(!confirm("There are unsaved changes in your current project.\nAre you sure you want to load a different one?")) return false;
 		var file=e.originalEvent.dataTransfer.files[0];
 		if(file.name.slice(-4)!==".lgb") alert("Unsupported file type!");
 		else if(file.size>50000000) alert("File is too big!");
@@ -343,7 +344,7 @@ $(document).ready(function() {
 		}
 		else {
 			$("#debugSlider").addClass("activated");
-			$("#debug").html("mouseX="+globalX+", mouseY="+globalY+"<br/>gridX="+realX+", gridY="+realY+"<br/>moveX="+canvasX+", moveY="+canvasY+"<br/>nodes: "+nodes.length+", lines: "+lines.length+", zoom: "+zoom);
+			updateDebug();
 			$("#debug").removeClass("hidden");
 		}
 	});
@@ -351,6 +352,11 @@ $(document).ready(function() {
 	//TOOLBAR - Select item
 	$(".node, #delete, #edit, #replace, #select").on("click", function() {
 		if(state==="edit") {
+			if(lineStart!==false) {
+				lineStart=false;
+				$("#canvas").off("mousemove.line");
+				redrawAll();
+			}
 			selected = $(this).attr("id");
 			$(".node, #delete, #edit, #replace, #select").removeClass("selected");
 			$(this).addClass("selected");
@@ -422,6 +428,10 @@ $(document).ready(function() {
 			ctx.translate(-canvasX, -canvasY);
 			canvasX+=midX/zoom;
 			canvasY+=midY/zoom;
+			if(zoom/zoomSpeed <= 1) {
+				canvasX=Math.round(canvasX);
+				canvasY=Math.round(canvasY);
+			}
 			ctx.scale(1/zoomSpeed,1/zoomSpeed);
 			ctx.translate(canvasX, canvasY);
 			zoom=zoom/zoomSpeed;
@@ -490,44 +500,50 @@ $(document).ready(function() {
 	
 	//LOAD PROJECT
 	var loadFile = function(loadProject) {
-		var oldNodes = nodes;
-		var oldLines = lines;
-		var oldCanvasX = canvasX;
-		var oldCanvasY = canvasY;
-		var oldZoom = zoom;
+		if(state!=="edit") stopSimulation();
+		var loadArr=false;
 		try {
-			var loadArr = JSON.parse(atob(loadProject));
-			nodes=loadArr[0];
-			lines=loadArr[1];
-			ctx.setTransform(1, 0, 0, 1, 0, 0);
-			if(!(loadArr.length>2)) {
-				canvasX=0;
-				canvasY=0;
-				zoom=1;
-			}
-			else {
-				canvasX=loadArr[2];
-				canvasY=loadArr[3];
-				zoom=loadArr[4];
-				ctx.scale(zoom, zoom);
-				ctx.translate(canvasX, canvasY);
-			}
-			unsaved=false;
-			redrawAll();
-			return true;
+			loadArr = JSON.parse(atob(loadProject));
 		}
 		catch(err) {
-			ctx.setTransform(1, 0, 0, 1, 0, 0);
-			nodes=oldNodes;
-			lines=oldLines;
-			canvasX=oldCanvasX;
-			canvasY=oldCanvasY;
-			zoom=oldZoom;
-			ctx.scale(zoom, zoom);
-			ctx.translate(canvasX, canvasY);
-			alert("Error:\n"+err.message);
+			alert("Error!\nThe file you're trying to load is not a LogicBoard file!");
 			return false;
 		}
+		var oldArr=[nodes, lines, [fileVersion, canvasX, canvasY, zoom, tickSpeed]];
+		try {
+			var loadArrInfo=loadArr[2];
+			if(typeof(loadArrInfo)!=="object" || loadArrInfo[0]<fileVersion) {
+				alert("This file comes from an older version and is no longer supported!");
+				return false;
+			}
+			if(unsaved) if(!confirm("There are unsaved changes in your current project.\nAre you sure you want to load a different one?")) return false;
+			nodes=loadArr[0];
+			lines=loadArr[1];
+			canvasX=loadArrInfo[1];
+			canvasY=loadArrInfo[2];
+			zoom=loadArrInfo[3];
+			tickSpeed=loadArrInfo[4];
+		}
+		catch(err) {
+			nodes=oldArr[0];
+			lines=oldArr[1];
+			canvasX=oldArr[2][1];
+			canvasY=oldArr[2][2];
+			zoom=oldArr[2][3];
+			tickSpeed=oldArr[2][4];
+			alert("Error!\nThe file you're trying to load is either corrupted or\nit isn't a LogicBoard file!");
+			return false;
+		}
+		ctx.setTransform(1, 0, 0, 1, 0, 0);
+		ctx.scale(zoom, zoom);
+		ctx.translate(canvasX, canvasY);
+		$("#speedSetting").html("Ticks per second: "+(1000/tickSpeed));
+		dragId=0;
+		lineStart=false;
+		lineLast=false;
+		unsaved=false;
+		redrawAll();
+		return true;
 	};
 	
 	//TRACK global MOUSE coordinates - mousemove
@@ -537,7 +553,7 @@ $(document).ready(function() {
 		globalY = event.clientY - rect.top;
 		realX = (globalX/zoom)-canvasX;
 		realY = (globalY/zoom)-canvasY;
-		$("#debug").html("mouseX="+globalX+", mouseY="+globalY+"<br/>gridX="+realX+", gridY="+realY+"<br/>moveX="+canvasX+", moveY="+canvasY+"<br/>nodes: "+nodes.length+", lines: "+lines.length+", zoom: "+zoom);
+		updateDebug();
 	});
 	
 	//KEYDOWN on canvas
@@ -631,10 +647,21 @@ $(document).ready(function() {
 				redrawAll();
 			}
 		}//KEY E - Edit
-		else if(keyID===69/*LOL*/ && obj!==false  && state==="edit" && !holdingClick) {
-			if(editObj(obj)) {
-				unsaved=true;
-				redrawAll();
+		else if(keyID===69/*LOL*/ && state==="edit" && !holdingClick) {
+			if(obj!==false) {
+				if(editObj(obj, false)) {
+					unsaved=true;
+					redrawAll();
+				}
+			}
+			else {
+				var clickedLine = getClickedLine(canX, canY);
+				if(clickedLine!==false) {
+					if(editObj(false, clickedLine)) {
+						unsaved=true;
+						redrawAll();
+					}
+				}
 			}
 		}//KEY SPACE - Start/Stop Simulation
 		else if(keyID===32 && !holdingClick) {
@@ -709,7 +736,7 @@ $(document).ready(function() {
 				holdingClick = true;
 				startClickX = globalX;
 				startClickY = globalY;
-				if(state!=="edit" || (getClickedNode(canX, canY)!==false && !["delete", "edit", "replace", "select", "line"].includes(selected))) {
+				if(state!=="edit" || (getClickedNode(canX, canY)!==false && (!["delete", "edit", "replace", "select", "line"].includes(selected) && lineStart===false))) {
 					mainAltEnd();
 					clickOn(canX, canY);
 				}
@@ -756,7 +783,7 @@ $(document).ready(function() {
 		}
 	});
 	
-	//MOUSE create line - mousemove
+	//MOUSE start line - mousemove
 	var lineStartActivate = function() {
 		$("#canvas").on("mousemove.line", function(event) {
 			redrawAll();
@@ -785,6 +812,7 @@ $(document).ready(function() {
 	//STOP Simulation
 	var stopSimulation = function() {
 		clearTimeout(TimeoutID);
+		ticks=0;
 		state="edit";
 		$("#StartControls").removeClass("hidden");
 		$("#StopControls").addClass("hidden");
@@ -812,6 +840,7 @@ $(document).ready(function() {
 	//MAIN Tick loop
 	var Tick = function() {
 		TimeoutID = setTimeout(Tick, tickSpeed);
+		ticks+=1;
 		for(i=0; i<lines.length; i++) {
 			lines[i].p = nodes[lines[i].a].p;
 		}
@@ -998,36 +1027,45 @@ $(document).ready(function() {
 	};
 	
 	//EDIT object
-	var editObj = function(id) {
-		if(["d", "b", "s", "w", "l", "n", "p", "t"].includes(nodes[id].t)) {
-			switch(nodes[id].t) {
-				case "d": case "p"://DELAY - PULSER
-					var delay=prompt("Set delay: (ticks)", nodes[id].d);
-					if(isNaN(parseFloat(delay)) || parseFloat(delay)<1) alert("Invalid number!");
-					else {
-						nodes[id].d=Math.round(parseFloat(delay));
-						nodes[id].c=Math.round(parseFloat(delay));
-					}
-					break;
-				case "w"://TEXT
-					var name = prompt("Enter text:", nodes[id].n);
-					if(name!=undefined && name!=="" && name!==" " && name!==nodes[id].n) {
-						var mX = getMiddleX(id);
-						ctx.font = textSize+"px Arial";
-						var measure = ctx.measureText(name).width/2;
-						nodes[id].n = name;
-						nodes[id].x1 = Math.round(mX-measure);
-						nodes[id].x2 = Math.round(mX+measure);
-					}
-					break;
-				case "n": case "t"://NOT - TOGGLE
-					nodes[id].p = !nodes[id].p;
-					nodes[id].sp = !nodes[id].sp;
-					break;
-				default: //BUTTON - SWITCH - OUTPUT LAMP
-					var name = prompt("Enter name:", nodes[id].n);
-					if(name!=undefined && name!==nodes[id].n) nodes[id].n = name;
+	var editObj = function(id, lineID) {
+		if(id!==false) {
+			if(["d", "b", "s", "w", "l", "n", "p", "t"].includes(nodes[id].t)) {
+				switch(nodes[id].t) {
+					case "d": case "p"://DELAY - PULSER
+						var delay=prompt("Set delay: (ticks)", nodes[id].d);
+						if(isNaN(parseFloat(delay)) || parseFloat(delay)<1) alert("Invalid number!");
+						else {
+							nodes[id].d=Math.round(parseFloat(delay));
+							nodes[id].c=Math.round(parseFloat(delay));
+						}
+						break;
+					case "w"://TEXT
+						var name = prompt("Enter text:", nodes[id].n);
+						if(name!=undefined && name!=="" && name!==" " && name!==nodes[id].n) {
+							var mX = getMiddleX(id);
+							ctx.font = textSize+"px Arial";
+							var measure = ctx.measureText(name).width/2;
+							nodes[id].n = name;
+							nodes[id].x1 = Math.round(mX-measure);
+							nodes[id].x2 = Math.round(mX+measure);
+						}
+						break;
+					case "n": case "t"://NOT - TOGGLE
+						nodes[id].p = !nodes[id].p;
+						nodes[id].sp = !nodes[id].sp;
+						break;
+					default: //BUTTON - SWITCH - OUTPUT LAMP
+						var name = prompt("Enter name:", nodes[id].n);
+						if(name!=undefined && name!==nodes[id].n) nodes[id].n = name;
+				}
+				return true;
 			}
+		}
+		else if(lineID!==false) {
+			lineStart = lines[lineID].a;
+			lines.splice(lineID, 1);
+			lineLast = lineStart;
+			lineStartActivate();
 			return true;
 		}
 		return false;
@@ -1079,7 +1117,8 @@ $(document).ready(function() {
 					drawText(getMiddleX(i),getMiddleY(i), nodes[i].d, defaultGate, fontSize);
 					break;
 				case "l"://OUTPUT LAMP
-					drawRect(nodes[i].x1, nodes[i].y1, nodes[i].x2, nodes[i].y2, powerColor(i), noOutline, 0);
+					if(zoom<1) drawRect(nodes[i].x1, nodes[i].y1, nodes[i].x2, nodes[i].y2, powerColor(i), powerColor(i), Math.log(1/zoom) / Math.log(2));
+					else drawRect(nodes[i].x1, nodes[i].y1, nodes[i].x2, nodes[i].y2, powerColor(i), noOutline, 0);
 					if(nodes[i].n!="") drawText(getMiddleX(i),getMiddleY(i), nodes[i].n, defaultText, fontSize);
 					break;
 				case "p"://PULSER
@@ -1092,6 +1131,10 @@ $(document).ready(function() {
 			if(nodes[lineStart].s==="c") drawLine(nodes[lineStart].x1, nodes[lineStart].y1, realX, realY, defaultOutline, defaultLine);
 			else drawLine(getMiddleX(lineStart), getMiddleY(lineStart), realX, realY, defaultOutline, defaultLine);
 		}
+		updateDebug();
+	};
+	
+	var updateDebug = function() {
 		$("#debug").html("mouseX="+globalX+", mouseY="+globalY+"<br/>gridX="+realX+", gridY="+realY+"<br/>moveX="+canvasX+", moveY="+canvasY+"<br/>nodes: "+nodes.length+", lines: "+lines.length+", zoom: "+zoom);
 	};
 	
@@ -1130,7 +1173,7 @@ $(document).ready(function() {
 		}
 		else if(state==="edit") {
 			var clickResultLine = getClickedLine(x, y);
-			if(selected==="line") {//LINE
+			if(selected==="line" || lineStart!==false) {//LINE
 				if(lineStart===false && clickResult!==false) {//START LINE
 					if(["s", "b", "n", "q", "d", "o", "a", "p", "r", "t", "m"].includes(nodes[clickResult].t)) {
 						lineStart = clickResult;
@@ -1218,8 +1261,8 @@ $(document).ready(function() {
 					unsaved=true;
 				}
 			}//EDIT OBJECT PROPERTIES
-			else if(selected==="edit" && clickResult!==false) {
-				if(editObj(clickResult)) unsaved=true;
+			else if(selected==="edit" && (clickResult!==false || clickResultLine!==false)) {
+				if(editObj(clickResult, clickResultLine)) unsaved=true;
 			}//REPLACE OBJECT
 			else if(selected==="replace" && clickResult!==false) {
 				alert("Not yet implemented!");
