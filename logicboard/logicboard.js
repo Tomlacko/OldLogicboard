@@ -1,17 +1,18 @@
 $(document).ready(function() {
-	function drawCircle(x, y, r, power, outline, line) {
+	
+	function drawCircle(x, y, r, power, outline) {
 		if(power) ctx.fillStyle = nodePoweredColor;
 		else ctx.fillStyle = nodeUnpoweredColor;
-		ctx.strokeStyle = outline;
-		ctx.lineWidth = line;
+		ctx.strokeStyle = outlineColor;
+		ctx.lineWidth = outlineWidth;
 		ctx.beginPath();
 		ctx.arc(x, y, r, 0, 2 * Math.PI, false);
-		ctx.stroke();
+		if(outline) ctx.stroke();
 		ctx.fill();
 	}
 	
-	function drawLine(startX, startY, endX, endY, power, line) {
-		ctx.lineWidth = line;
+	function drawLine(startX, startY, endX, endY, power) {
+		ctx.lineWidth = lineWidth;
 		var grad=ctx.createLinearGradient(startX, startY, endX, endY);
 		if(power) {
 			grad.addColorStop(0, linePoweredColor);
@@ -28,30 +29,32 @@ $(document).ready(function() {
 		ctx.stroke();
 	}
 	
-	function drawRect(startX, startY, endX, endY, power, outline, line) {
+	function drawRect(startX, startY, endX, endY, power, outline, outlineW) {
 		if(power) ctx.fillStyle = nodePoweredColor;
 		else ctx.fillStyle = nodeUnpoweredColor;
-		ctx.strokeStyle=outline;
-		ctx.lineWidth=line;
+		ctx.strokeStyle=outlineColor;
+		if(!outlineW) ctx.lineWidth=outlineWidth;
+		else ctx.lineWidth=outlineW;
 		ctx.beginPath();
 		ctx.rect(startX, startY, endX-startX, endY-startY);
-		ctx.stroke();
+		if(outline) ctx.stroke();
 		ctx.fill();
 	}
 	
-	function drawOval(startX, startY, endX, endY, power, outline, line) {
+	function drawOval(startX, startY, endX, endY, power, outline) {
 		if(power) ctx.fillStyle = nodePoweredColor;
 		else ctx.fillStyle = nodeUnpoweredColor;
-		ctx.strokeStyle=outline;
-		ctx.lineWidth=line;
+		ctx.strokeStyle=outlineColor;
+		ctx.lineWidth=outlineWidth;
 		ctx.beginPath();
-		startX+=(defaultHeight/2);
-		endX-=(defaultHeight/2);
-		ctx.arc(startX, startY+((endY-startY)/2), defaultHeight/2, degToRad(90), degToRad(270), false);
+		var h=(endY-startY)/2;
+		startX+=h;
+		endX-=h;
+		ctx.arc(startX, startY+h, h, degToRad(90), degToRad(270), false);
 		ctx.lineTo(endX, startY);
-		ctx.arc(endX, startY+((endY-startY)/2), defaultHeight/2, degToRad(270), degToRad(90), false);
+		ctx.arc(endX, startY+h, h, degToRad(270), degToRad(90), false);
 		ctx.lineTo(startX, endY);
-		ctx.stroke();
+		if(outline) ctx.stroke();
 		ctx.fill();
 	}
 	
@@ -355,7 +358,7 @@ $(document).ready(function() {
 			"editable":true
 		},
 		{//12
-			"fullName":"OUTPUT",
+			"fullName":"Output",
 			"shape":"rect",
 			"width":gridSpacing,
 			"height":gridSpacing,
@@ -809,7 +812,7 @@ $(document).ready(function() {
 		//KEY R - align to grid
 		if(keyID===82 && state==="edit" && obj!==false) {
 			nodes[obj].x=Math.round(nodes[obj].x/gridSpacing)*gridSpacing;
-			nodes[obj].y1=Math.round(nodes[obj].y/gridSpacing)*gridSpacing;
+			nodes[obj].y=Math.round(nodes[obj].y/gridSpacing)*gridSpacing;
 			unsaved=true;
 			redraw();
 		}//KEY F - quick new line
@@ -1167,6 +1170,31 @@ $(document).ready(function() {
 		}
 	}
 	
+	//GET Object hitbox
+	function getWidth(id) {
+		if(design[nodes[id].t].outline) return design[nodes[id].t].width + outlineWidth;
+		else return design[nodes[id].t].width;
+	}
+	function getHeight(id) {
+		if(design[nodes[id].t].outline) return design[nodes[id].t].height + outlineWidth;
+		else return design[nodes[id].t].height;
+	}
+	function getRadius(id) {
+		if(design[nodes[id].t].outline) return design[nodes[id].t].radius + outlineWidth/2;
+		else return design[nodes[id].t].radius;
+	}
+	
+	//GET Object size
+	function getSizeX(id) {
+		return design[nodes[id].t].width/2;
+	}
+	function getSizeY(id) {
+		return design[nodes[id].t].height/2;
+	}
+	function getSizeR(id) {
+		return design[nodes[id].t].radius;
+	}
+	
 	//Find duplicate line - prevent creating multiple identical lines
 	function findDuplicateLine(id) {
 		for(j=0; j<lines.length; j++) {
@@ -1289,41 +1317,32 @@ $(document).ready(function() {
 		clear();
 		if(showGrid && zoom>=0.125) drawGrid();
 		for(i=0; i<lines.length; i++) {
-			drawLine(nodes[lines[i].a].x, nodes[lines[i].a].y, nodes[lines[i].b].x, nodes[lines[i].b].y, lines[i].p, lineWidth);
+			drawLine(nodes[lines[i].a].x, nodes[lines[i].a].y, nodes[lines[i].b].x, nodes[lines[i].b].y, lines[i].p);
 		}
 		for(i=0; i<nodes.length; i++) {
-			switch(nodes[i].t) {
-				case 13://TEXT
-					drawText(nodes[i].x, nodes[i].y, nodes[i].n, textColor, textSize);
-					break;
-				case 1: case 2://SWITCH, BUTTON
-					drawCircle(nodes[i].x1, nodes[i].y1, nodes[i].r, nodes[i].p, outlineColor, outlineWidth);
-					if(nodes[i].n!="") drawText(nodes[i].x1, nodes[i].y1, nodes[i].n, textNameColor, fontSize);
-					break;
-				case 4: case 5: case 8: case 9://OR - AND - TOGGLE - MONOSTABLE
-					drawRect(nodes[i].x1, nodes[i].y1, nodes[i].x2, nodes[i].y2, nodes[i].p, outlineColor, outlineWidth);
-					drawText(nodes[i].x, nodes[i].y, getFullName(nodes[i].t).toUpperCase(), textNodeColor, fontSize);
-					break;
-				case 6: case 10://NOT - RANDOM
-					drawCircle(nodes[i].x1, nodes[i].y1, nodes[i].r, nodes[i].p, outlineColor, outlineWidth);
-					drawText(nodes[i].x1, nodes[i].y1, getFullName(nodes[i].t).toUpperCase(), textNodeColor, fontSize);
-					break;
-				case 7://DELAY
-					drawOval(nodes[i].x1, nodes[i].y1, nodes[i].x2, nodes[i].y2, nodes[i].p, outlineColor, outlineWidth);
-					drawText(nodes[i].x, nodes[i].y, nodes[i].d, textNodeColor, fontSize);
-					break;
-				case 12://OUTPUT LAMP
-					if(zoom<1) drawRect(nodes[i].x1, nodes[i].y1, nodes[i].x2, nodes[i].y2, nodes[i].p, noOutline, Math.log(1/zoom) / Math.log(2));
-					else drawRect(nodes[i].x1, nodes[i].y1, nodes[i].x2, nodes[i].y2, nodes[i].p, noOutline, 0);
-					if(nodes[i].n!="") drawText(nodes[i].x, nodes[i].y, nodes[i].n, textColor, fontSize);
-					break;
-				case 3://PULSER
-					drawCircle(nodes[i].x1, nodes[i].y1, nodes[i].r, nodes[i].p, outlineColor, outlineWidth);
-					drawText(nodes[i].x, nodes[i].y, nodes[i].d, textNodeColor, fontSize);
-					break;
+			if(design[nodes[i].t].shape==="rect" && nodes[i].t!==13) {
+				if(nodes[i].t===12 && zoom<1) drawRect(nodes[i].x-getSizeX(i), nodes[i].y-getSizeY(i), nodes[i].x+getSizeX(i), nodes[i].y+getSizeY(i), nodes[i].p, true, Math.log(1/zoom)/Math.log(2));
+				else drawRect(nodes[i].x-getSizeX(i), nodes[i].y-getSizeY(i), nodes[i].x+getSizeX(i), nodes[i].y+getSizeY(i), nodes[i].p, design[nodes[i].t].outline);
 			}
+			else if(design[nodes[i].t].shape==="circle") {
+				drawCircle(nodes[i].x, nodes[i].y, design[nodes[i].t].radius, nodes[i].p, design[nodes[i].t].outline, outlineWidth);
+			}
+			else if(design[nodes[i].t].shape==="oval") {
+				drawOval(nodes[i].x-getSizeX(i), nodes[i].y-getSizeY(i), nodes[i].x+getSizeX(i), nodes[i].y+getSizeY(i), nodes[i].p, design[nodes[i].t].outline);
+			}
+			
+			if([1, 2, 11, 12, 13].includes(nodes[i].t)) {//switch, button, note, output, text
+				var text = nodes[i].n;
+			}
+			else if([4, 5, 6, 8, 9, 10].includes(nodes[i].t)) {//or, and, not, toggle, monostable, random
+				var text = design[nodes[i].t].fullName;
+			}
+			else if([3, 7].includes(nodes[i].t)) {
+				var text = nodes[i].d;
+			}
+			if(text!=="") drawText(nodes[i].x, nodes[i].y, text, design[nodes[i].t].textColor, design[nodes[i].t].textSize);
 		}
-		if(lineStart!==false) drawLine(nodes[lineStart].x, nodes[lineStart].y, realX, realY, false, lineWidth);
+		if(lineStart!==false) drawLine(nodes[lineStart].x, nodes[lineStart].y, realX, realY, false);
 		updateDebug();
 	}
 	
@@ -1335,14 +1354,18 @@ $(document).ready(function() {
 	function getClickedNode(x, y) {
 		if(nodes.length===0) return false;
 		for(i = nodes.length-1; i>=0; i--) {
-			if(nodes[i].s==="r") {//rectangle
-				if(x>=nodes[i].x1-outlineWidth/2 && nodes[i].x2+outlineWidth/2>=x && y>=nodes[i].y1-outlineWidth/2 && nodes[i].y2+outlineWidth/2>=y) return i;
+			if(design[nodes[i].t].shape==="rect") {//rectangle
+				if(x>=nodes[i].x-getWidth(i)/2 && nodes[i].x+getWidth(i)/2>=x && y>=nodes[i].y-getHeight(i)/2 && nodes[i].y+getHeight(i)/2>=y) return i;
 			}//oval
-			else if(nodes[i].s==="o") {
-				if((x>=nodes[i].x1+(defaultHeight/2) && nodes[i].x2-(defaultHeight/2)>=x && y>=nodes[i].y1-outlineWidth/2 && nodes[i].y2+outlineWidth/2>=y) || (Math.sqrt(Math.pow(Math.abs(nodes[i].x1+(defaultHeight/2)-x), 2)+Math.pow(Math.abs(nodes[i].y-y), 2))<=(defaultHeight+outlineWidth)/2) || (Math.sqrt(Math.pow(Math.abs(nodes[i].x2-(defaultHeight/2)-x), 2)+Math.pow(Math.abs(nodes[i].y-y), 2))<=(defaultHeight+outlineWidth)/2)) return i;
+			else if(design[nodes[i].t].shape==="oval") {
+				var h = getSizeY(i);
+				var w = getSizeX(i)-h;
+				if(design[nodes[i].t].outline) var o = outlineWidth/2;
+				else var o = 0;
+				if((x>=nodes[i].x-w && nodes[i].x+w>=x && y>=nodes[i].y-h-o && nodes[i].y+h+o>=y) || (Math.sqrt(Math.pow(Math.abs(nodes[i].x-w-x), 2)+Math.pow(Math.abs(nodes[i].y-y), 2))<=h+o) || (Math.sqrt(Math.pow(Math.abs(nodes[i].x+w-x), 2)+Math.pow(Math.abs(nodes[i].y-y), 2))<=h+o)) return i;
 			}//circle
-			else {
-				if(Math.sqrt(Math.pow(Math.abs(nodes[i].x1-x), 2)+Math.pow(Math.abs(nodes[i].y1-y), 2))<=nodes[i].r+outlineWidth/2) return i;
+			else if(design[nodes[i].t].shape==="circle") {
+				if(Math.sqrt(Math.pow(Math.abs(nodes[i].x-x), 2)+Math.pow(Math.abs(nodes[i].y-y), 2))<=getRadius(i)) return i;
 			}
 		}
 		return false;
@@ -1441,7 +1464,7 @@ $(document).ready(function() {
 						case 13://TEXT
 							var text = prompt("Enter text:");
 							if(text!=undefined && text!=="" && text!==" ") {
-								ctx.font = design.w.textSize+"px Arial";
+								ctx.font = design[selected].textSize+"px Arial";
 								var measure = parseFloat(ctx.measureText(text).width.toFixed(2));
 								nodes.push({t:13, n:text, x:x, y:y, w:measure});
 							}
