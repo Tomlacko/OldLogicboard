@@ -5,7 +5,7 @@
 }
 
 body {
-	background-color:#222;
+	background-color:#888;
 }
 
 .hidden {
@@ -14,6 +14,8 @@ body {
 
 #canvas {
 	background-color:#FFF;
+	box-shadow:5px 5px 5px #000;
+	margin-left:10px;
 }
 
 #SelectNode, #StopControl {

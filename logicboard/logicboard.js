@@ -52,6 +52,10 @@ $(document).ready(function() {
 		return "rgba("+r+", "+g+", "+b+", 255)";
 	};
 	
+	var capitalize = function(text) {
+		return text[0].toUpperCase() + text.substring(1);
+	}
+	
 	/*-----------------------------------------------------------------------------------------------*/
 	
 	var canvas = document.getElementById("canvas");
@@ -74,13 +78,13 @@ $(document).ready(function() {
 	var nodes = [];
 	var nNodes = {nText:0, nToggle:0, nButton:0, nSource:0, nOr:0, nAnd:0, nNot:0, nDelay:0, nOutput:0, nLine:0};
 	var lines = [];
-	var tickSpeed = 100;
+	var tickSpeed = 10;
 	var selected = "toggle";
 	var state = "edit";
 	var TimeoutID = 0;
 
 	var defaultLine = 4;
-	var defaultColor = "rgba(240, 240, 240, 255)";
+	var defaultColor = "rgba(200, 200, 200, 255)";
 	var defaultOutline = "rgba(0, 0, 0, 255)";
 	var defaultPower = "rgba(255, 0, 0, 255)";
 	var defaultText = "rgba(0, 0, 0, 255)";
@@ -106,6 +110,9 @@ $(document).ready(function() {
 			state="edit";
 			$("#SelectNode").removeClass("hidden");
 			$("#StopControl").addClass("hidden");
+			selected="toggle";
+			resetPower();
+			redrawAll();
 		}
 		else if($(this).attr("id")==="pause" && state==="paused") {
 			state="running";
@@ -171,8 +178,6 @@ $(document).ready(function() {
 		});
 	};
 	
-	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	
 	var startSimulation = function() {
 		$("#SelectNode").addClass("hidden");
 		$("#StopControl").removeClass("hidden");
@@ -216,9 +221,9 @@ $(document).ready(function() {
 	
 	var testAnd = function(id) {
 		var result = false;
-		for(i=0; i<lines.length; i++) {
-			if(lines[i].endID===nodes[id].id && lines[i].powered) result = true;
-			if(lines[i].endID===nodes[id].id && !lines[i].powered) {
+		for(j=0; j<lines.length; j++) {
+			if(lines[j].endID===nodes[id].id && lines[j].powered) result = true;
+			if(lines[j].endID===nodes[id].id && !lines[j].powered) {
 				result = false;
 				break;
 			}
@@ -227,18 +232,29 @@ $(document).ready(function() {
 	}
 	
 	var testOr = function(id) {
-		for(i=0; i<lines.length; i++) {
-			if(lines[i].endID===nodes[id].id && lines[i].powered) return true;
+		for(j=0; j<lines.length; j++) {
+			if(lines[j].endID===nodes[id].id && lines[j].powered) return true;
 		}
 		return false;
 	}
 	
 	var testNot = function(id) {
-		for(i=0; i<lines.length; i++) {
-			if(lines[i].endID===nodes[id].id && lines[i].powered) return false;
+		for(j=0; j<lines.length; j++) {
+			if(lines[j].endID===nodes[id].id && lines[j].powered) return false;
 		}
 		return true;
 	}
+	
+	var resetPower = function() {
+		for(j=0; j<nodes.length; j++) {
+			if(nodes[j].type!=="source" && nodes[j].type!=="text" && nodes[j].type!=="not") nodes[j].powered = false;
+			else if(nodes[j].type==="not") nodes[j].powered = true;
+			if(nodes[j].type==="delay") nodes[j].countdown = nodes[j].delay;
+		}
+		for(j=0; j<lines.length; j++) {
+			lines[j].powered = false;
+		}
+	};
 	
 	var modifyNodeCount = function(type, oper) {
 		switch(type) {
@@ -320,9 +336,18 @@ $(document).ready(function() {
 	};
 	
 	var getRealID = function(id) {
-		if(nodes[id].id===id) return id;
-		for(i=0; i<nodes.length; i++) {
-			if(nodes[i].id===id) return i;
+		if(id<nodes.length) {
+			if(nodes[id].id===id) return id;
+		}
+		for(k=0; k<nodes.length; k++) {
+			if(nodes[k].id===id) return k;
+		}
+		return false;
+	};
+	
+	var findDuplicateLine = function(id) {
+		for(j=0; j<lines.length; j++) {
+			if(lines[j].startID===nodes[lineStart].id && lines[j].endID===nodes[id].id) return true;
 		}
 		return false;
 	};
@@ -392,7 +417,7 @@ $(document).ready(function() {
 	var getClickedLine = function(x, y) {
 		if(lines.length===0) return false;
 		for(i = lines.length-1; i>=0; i--) {
-			if((Math.sqrt(Math.pow(Math.abs(getMiddleX(getRealID(lines[i].startID))-x), 2)+Math.pow(Math.abs(getMiddleY(getRealID(lines[i].startID))-y), 2))+Math.sqrt(Math.pow(Math.abs(getMiddleX(getRealID(lines[i].endID))-x), 2)+Math.pow(Math.abs(getMiddleY(getRealID(lines[i].endID))-y), 2)))<(Math.sqrt(Math.pow(Math.abs(getMiddleX(getRealID(lines[i].startID))-getMiddleX(getRealID(lines[i].endID))), 2)+Math.pow(Math.abs(getMiddleY(getRealID(lines[i].startID))-getMiddleY(getRealID(lines[i].endID))), 2))+4)) return i;
+			if((Math.sqrt(Math.pow(Math.abs(getMiddleX(getRealID(lines[i].startID))-x), 2)+Math.pow(Math.abs(getMiddleY(getRealID(lines[i].startID))-y), 2))+Math.sqrt(Math.pow(Math.abs(getMiddleX(getRealID(lines[i].endID))-x), 2)+Math.pow(Math.abs(getMiddleY(getRealID(lines[i].endID))-y), 2)))<(Math.sqrt(Math.pow(Math.abs(getMiddleX(getRealID(lines[i].startID))-getMiddleX(getRealID(lines[i].endID))), 2)+Math.pow(Math.abs(getMiddleY(getRealID(lines[i].startID))-getMiddleY(getRealID(lines[i].endID))), 2))+2)) return i;
 		}
 		return false;
 	};
@@ -414,14 +439,13 @@ $(document).ready(function() {
 				else {
 					switch(selected) {
 						case "toggle": case "button":
-							var name=prompt("Input name:");
-							if(name!=undefined) addNodeCircle(selected, false, x, y, defaultRadius, name);
+							addNodeCircle(selected, false, x, y, defaultRadius, capitalize(selected));
 							break;
 						case "or": case "and":
 							addNode(selected, false, x-(defaultWidth/2), y-(defaultHeight/2), x+(defaultWidth/2), y+(defaultHeight/2), "", -1);
 							break;
 						case "delay":
-							var delay=prompt("Set delay: (10=1sec)");
+							var delay=prompt("Set delay: (100=1sec)", "50");
 							if(isNaN(parseInt(delay)) || parseInt(delay)<0) alert("You have to enter a number!");
 							else addNode(selected, false, x-(defaultWidth/2), y-(defaultHeight/2), x+(defaultWidth/2), y+(defaultHeight/2), "", parseInt(delay));
 							break;
@@ -429,15 +453,14 @@ $(document).ready(function() {
 							addNodeCircle(selected, true, x, y, defaultRadius, "");
 							break;
 						case "output":
-							var name=prompt("Output name:");
-							if(name!=undefined) addNode(selected, false, x-(defaultHeight/2), y-(defaultHeight/2), x+(defaultHeight/2), y+(defaultHeight/2), name, -1);
+							addNode(selected, false, x-(defaultHeight/2), y-(defaultHeight/2), x+(defaultHeight/2), y+(defaultHeight/2), "", -1);
 							break;
 						case "source":
 							addNodeCircle(selected, true, x, y, defaultRadius, "");
 							break;
 						case "text":
 							var text = prompt("Enter text:");
-							if(text!=undefined) addNode("text", false, x, y, ctx.measureText(text).width, 16, text, -1);
+							if(text!=undefined && text!=="" && text!==" ") addNode("text", false, x, y, ctx.measureText(text).width, 16, text, -1);
 							break;
 					}
 				}
@@ -445,6 +468,9 @@ $(document).ready(function() {
 			else if(selected==="delete") {
 				if(clickResult!==false) {
 					modifyNodeCount(nodes[clickResult].type, -1);
+					for(j = lines.length-1; j>=0; j--) {
+						if(lines[j].startID===nodes[clickResult].id || lines[j].endID===nodes[clickResult].id) lines.splice(j, 1);
+					}
 					nodes.splice(clickResult, 1);
 				}
 				else if(clickResultLine!==false) {
@@ -456,7 +482,7 @@ $(document).ready(function() {
 				if(nodes[clickResult].type==="delay" || nodes[clickResult].type==="button" || nodes[clickResult].type==="toggle" || nodes[clickResult].type==="text" || nodes[clickResult].type==="output") {
 					switch(nodes[clickResult].type) {
 						case "delay":
-							var delay=prompt("Set delay: (10=1sec)");
+							var delay=prompt("Set delay: (100=1sec)", "50");
 							if(isNaN(parseInt(delay)) || parseInt(delay)<0) alert("You have to enter a number!");
 							else nodes[clickResult].delay=parseInt(delay);
 							break;
@@ -472,14 +498,14 @@ $(document).ready(function() {
 			}
 			else if(selected==="line") {
 				if(lineStart===false && clickResult!==false) {
-					if(nodes[clickResult].type==="toggle" || nodes[clickResult].type==="button" || nodes[clickResult].type==="not" || nodes[clickResult].type==="source" || nodes[clickResult].type==="delay") {
+					if(nodes[clickResult].type==="toggle" || nodes[clickResult].type==="button" || nodes[clickResult].type==="not" || nodes[clickResult].type==="source" || nodes[clickResult].type==="delay" || nodes[clickResult].type==="or" || nodes[clickResult].type==="and") {
 						lineStart = clickResult;
 						lineStartActivate();
 					}
 				}
 				else if(lineStart!==false) {
-					if(clickResult===false) {}
-					else if(nodes[clickResult].type!=="toggle" && nodes[clickResult].type!=="button" && nodes[clickResult].type!=="source" && nodes[clickResult].type!=="text") {
+					if(clickResult===false || clickResult===lineStart) {}
+					else if(nodes[clickResult].type!=="toggle" && nodes[clickResult].type!=="button" && nodes[clickResult].type!=="source" && nodes[clickResult].type!=="text" && !findDuplicateLine(clickResult)) {
 						addLine(false, nodes[lineStart].id, nodes[clickResult].id);
 					}
 					lineStart=false;
@@ -487,7 +513,7 @@ $(document).ready(function() {
 				}
 			}
 		}
-		else if(state==="running") {
+		else if(state==="running" && clickResult!==false) {
 			if(nodes[clickResult].type==="button") nodes[clickResult].powered=true;
 			else if(nodes[clickResult].type==="toggle" && nodes[clickResult].powered===false) nodes[clickResult].powered=true;
 			else if(nodes[clickResult].type==="toggle") nodes[clickResult].powered=false;
@@ -495,3 +521,5 @@ $(document).ready(function() {
 		redrawAll();
 	};
 });
+//Remove endora text
+$("i").parent().parent().parent().remove();
