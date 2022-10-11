@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Logic Board</title>
+		<script type="text/javascript" src="../jquery-min-1.7.js"></script>
+		<script type="text/javascript" src="../clipboard-min-1.5.8.js"></script>
+		<script type="text/javascript" src="logicboard.js"></script>
+		<link rel="stylesheet" type="text/css" href="logicboard.css"/>
+		<meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+	</head>
+	<body style="overflow:hidden;">
+		<div id="overlay" class="hidden">
+			<img src="icons/close.png" id="close" title="Close" />
+			
+			<div id="popup_save" class="popup hidden">
+				<h1>Copy this:</h1>
+				<input type="textArea" id="exportSave">
+				<p style="margin-top:8px;">or click here:</p>
+				<input type="button" value="Copy to Clipboard" id="copyButton" style="padding:2px; cursor:pointer;">
+				<p class="hidden" id="copyDone">Succesfully copied!</p>
+			</div>
+			
+			<div id="popup_load" class="popup hidden">
+				<h1>Open project:</h1>
+				<input type="file" id="inputFile" accept=".lgb" style="display:none;">
+				<label for="inputFile" id="labelFile">Choose file...</label>
+				<p style="margin-top:50px;">or paste in data manually:</p>
+				<input type="textArea" id="pasteImport" >
+				<input type="button" id="pasteButton" value="LOAD" style="padding:2px; cursor:pointer; margin-left:5px;">
+			</div>
+			
+			<div id="popup_download" class="popup hidden">
+				<h1>Enter project name:</h1>
+				<input type="textArea" id="downloadName" value="new_project">
+				<br />
+				<input type="button" id="downloadButton" value="DOWNLOAD" style="padding:2px; cursor:pointer; margin-top:5px;">
+			</div>
+			
+			<div id="popup_settings" class="popup hidden">
+				<h1>Settings:</h1>
+				<p id="speedSetting" style="display:inline-block;">Ticks per second: 100</p>
+				<input type="button" value="Change" id="speed" style="padding:2px; cursor:pointer; margin-left:8px;">
+				<br />
+				<p style="display:inline-block; margin-top:8px;">Advanced Info</p>
+				<div id="debugSlider" class="slider"><div></div></div>
+			</div>
+			
+			<div id="popup_info" class="popup hidden">
+				<h1>Information:</h1>
+				<div id="information">
+					<h2>Node description:</h2>
+					<img src="nodes/line.png" />
+					<p><strong>Connects nodes together.</strong><br />When selected, click one node, then click another one. This connect those two nodes.<br />The order in which you connect the nodes matters! The power will only flow from the first node to the last one.<br />Some nodes cannot be connected, while others don't allow you to start a connection from them.</p>
+					<br />
+					<img src="nodes/switch.png" />
+					<p><strong>Click to turn ON/OFF.</strong><br />When the circuit is running, click on the switch to turn it ON/OFF.<br />Can be renamed using EDIT.</p>
+					<br />
+					<img src="nodes/button.png" />
+					<p><strong>Click to turn ON.</strong><br />When the circuit is running, click on the button to turn it ON.<br />It will turn OFF immediately after you stop holding your mouse button.<br />Can be renamed using EDIT.</p>
+				</div>
+			</div>
+		</div>
+		<div id="fileOverlay" class="hidden">
+			<img src="icons/file.png" id="fileIcon" />
+		</div>
+		<div id="panel">
+			<div id="StopControls" class="hidden">
+				<img src="icons/stop.png" id="stop" class="button" title="STOP" />
+				<img src="icons/pause.png" id="pause" class="button" title="Pause / Continue" />
+				<img src="icons/step.png" id="step" class="button disabled" title="Step" />
+			</div>
+			<div id="StartControls">
+				<img src="icons/start.png" id="start" class="button" title="START Simulation" />
+				<img src="icons/undo.png" id="undo" class="button" title="Undo" />
+				<img src="icons/redo.png" id="redo" class="button" title="Redo" />
+			</div>
+			<div id="MoveControls">
+				<img src="icons/left.png" id="move_left" class="button" title="Move Left" />
+				<img src="icons/up.png" id="move_up" class="button" title="Move Up" />
+				<img src="icons/right.png" id="move_right" class="button" title="Move Right" />
+				<img src="icons/down.png" id="move_down" class="button" title="Move Down" />
+				<img src="icons/zoom.png" id="zoom" class="button" title="Zoom+" />
+				<img src="icons/unzoom.png" id="unzoom" class="button" title="Zoom-" />
+			</div>
+			<div id="EditControls">
+				<img src="icons/select.png" id="select" class="button" title="Select Objects" />
+				<img src="icons/edit.png" id="edit" class="button" title="Edit Object" />
+				<img src="icons/delete.png" id="delete" class="button" title="Delete Object" />
+				<img src="icons/replace.png" id="replace" class="button" title="Replace Object" />
+			</div>
+			<div id="Options">
+				<img src="icons/save.png" id="save" class="button" title="SAVE" />
+				<img src="icons/load.png" id="load" class="button" title="LOAD" />
+				<img src="icons/download.png" id="download" class="button" title="Download" />
+				<img src="icons/help.png" id="info" class="button" title="Help / Information / Tutorial" />
+				<img src="icons/settings.png" id="settings" class="button" title="Settings" />
+			</div>
+		</div>
+		<div id="nodebar">
+			<img src="nodes/line.png" id="line" class="node" title="Connection Line" />
+			<img src="nodes/switch.png" id="s" class="node selected" title="Switch" />
+			<img src="nodes/button.png" id="b" class="node" title="Button" />
+			<img src="nodes/pulser.png" id="p" class="node" title="Pulser" />
+			<img src="nodes/source.png" id="q" class="node" title="Source" />
+			<img src="nodes/or.png" id="o" class="node" title="OR Gate" />
+			<img src="nodes/and.png" id="a" class="node" title="AND Gate" />
+			<img src="nodes/not.png" id="n" class="node" title="NOT Gate" />
+			<img src="nodes/delay.png" id="d" class="node" title="Delay" />
+			<img src="nodes/toggle.png" id="t" class="node" title="Toggle" />
+			<img src="nodes/monostable.png" id="m" class="node" title="Monostable" />
+			<img src="nodes/random.png" id="r" class="node" title="Randomizer" />
+			<img src="nodes/output.png" id="l" class="node" title="Output Lamp" />
+			<img src="nodes/text.png" id="w" class="node" title="Text" />
+		</div>
+		<div id="canvasContainer">
+			<canvas id="canvas" width="16" height="9"></canvas>
+			<p id="debug" class="hidden"></p>
+		</div>
+	</body>
+</html>
