@@ -215,9 +215,10 @@ $(document).ready(function() {
 	var lineWidth = 4;
 	var lineClickRadius = 0.08;
 	
+	var whiteColor = "rgba(255, 255, 255, 255)";//#FFF
 	var blackColor = "rgba(0, 0, 0, 255)";//#000
 	var redColor = "rgba(255, 0, 0, 255)";//#F00
-	var blueColor = "rgba(0, 0, 255, 255)";//#0000FF
+	var blueColor = "rgba(0, 0, 255, 255)";//#00F
 	var greenColor = "rgba(0, 255, 0, 255)";//#0F0
 	var noOutline = "rgba(0, 0, 0, 0)";
 	var outlineColor = blackColor;
@@ -415,6 +416,16 @@ $(document).ready(function() {
 		if($(document.activeElement).parent().parent().is("#place")) $(".placeOpt:not(.hidden) input").blur();
 	});
 	
+	//sliders
+	$(".slider").on("click", function() {
+		if($(this).hasClass("activated")) {
+			$(this).removeClass("activated");
+		}
+		else {
+			$(this).addClass("activated");
+		}
+	});
+	
 	//click on BUTTONS/NODES - activated effect
 	$(".node, .button, #labelFile").on(mobile?"touchstart":"mousedown", function(e) {
 		if(e.type==="touchstart" || e.which===1) {
@@ -433,13 +444,19 @@ $(document).ready(function() {
 		$(".menu, #overlay, #copyDone").addClass("hidden");
 	});
 	
-	//sliders
-	$(".slider").on("click", function() {
-		if($(this).hasClass("activated")) {
-			$(this).removeClass("activated");
-		}
-		else {
-			$(this).addClass("activated");
+	//INPUT TYPE=NUMBER SCROLLWHEEL change value
+	$("input[type=number]").on("mousewheel DOMMouseScroll", function(e){
+		if(!holdingCTRL) {
+			e.preventDefault();
+			console.log(e.originalEvent.wheelDelta);
+			/*var obj = $(this).children(".placeOpt").not(".hidden").children("input[type=number]");
+			if(obj.length<1) return;*/
+			var obj = $(this);
+			var scrollAmount = (/Firefox/i.test(navigator.userAgent))? (e.originalEvent.detail*-1) : (e.originalEvent.wheelDelta/120);
+			if(scrollAmount > 0) obj.val(parseInt(obj.val())+1);
+			else{
+				if(parseInt(obj.val())>0) obj.val(parseInt(obj.val())-1);
+			}
 		}
 	});
 	
@@ -469,7 +486,6 @@ $(document).ready(function() {
 		ctx.setTransform(1, 0, 0, 1, 0, 0);
 		tickSpeed=10;
 		$("#speedSetting").html("Ticks per second: 100");
-		dragId=0;
 		tabID=0;
 		lineStart=false;
 		lineLast=false;
@@ -620,7 +636,6 @@ $(document).ready(function() {
 		ctx.scale(zoom, zoom);
 		ctx.translate(canvasX, canvasY);
 		$("#speedSetting").html("Ticks per second: "+Math.round(1000/tickSpeed));
-		dragId=0;
 		tabID=0;
 		lineStart=false;
 		lineLast=false;
@@ -655,22 +670,35 @@ $(document).ready(function() {
 	
 	//Show Grid Slider
 	$("#gridSlider").on("click", function() {
-		if(showGrid) {
-			showGrid=false;
-		}
-		else {
-			showGrid=true;
-		}
+		showGrid=!showGrid;
 		redraw();
 	});
 	
 	//Track viewport with UNDO
 	$("#undoSlider").on("click", function() {
-		if(undoTrackView) {
-			undoTrackView = false;
+		undoTrackView=!undoTrackView;
+		redraw();
+	});
+	
+	//Toggle DARK MODE
+	$("#darkSlider").on("click", function() {
+		if(darkMode) {
+			darkMode=false;
+			$("#canvas, #debug, #nodebarContainer").removeClass("dark");
+			design[13].textColor = blackColor;
+			outlineColor = blackColor;
+			lineUnpoweredColor = blackColor;
+			lineUnpoweredGradient = "rgba(150, 150, 150, 255)";
+			gridLineColor = "rgba(220, 220, 220, 255)";
 		}
 		else {
-			undoTrackView=true;
+			darkMode=true;
+			$("#canvas, #debug, #nodebarContainer").addClass("dark");
+			design[13].textColor = whiteColor;
+			outlineColor = "rgba(70, 70, 70, 255)";
+			lineUnpoweredColor = whiteColor;
+			lineUnpoweredGradient = "rgba(50, 50, 50, 255)";
+			gridLineColor = "rgba(50, 50, 50, 255)";
 		}
 		redraw();
 	});
@@ -698,8 +726,7 @@ $(document).ready(function() {
 	$(".node, #delete, #edit, #replace, #select").on("click", function() {
 		if(state==="edit" && !$(this).hasClass("disabled")) {
 			if(lineStart!==false) {
-				lineStart=false;
-				$("#canvas").off("mousemove.line");
+				lineStop();
 				redraw();
 			}
 			if($(this).hasClass("selected") && ($(this).is("#delete") || $(this).is("#edit") || $(this).is("#replace") || $(this).is("#select"))) {
@@ -888,7 +915,7 @@ $(document).ready(function() {
 	
 	//KEYDOWN on canvas
 	$(document).on("keydown", function(key) {
-		//82=r, 17=ctrl, 70=f, 71=g, 192=~, 16=shift, 46=delete, 27=ESC, 13=ENTER, 32=Space, 9=TAB, 109=-, 107=+, 69=e, 81=q
+		//82=r, 17=ctrl, 70=f, 71=g, 192=~, 16=shift, 46=delete, 27=ESC, 13=ENTER, 32=Space, 9=TAB, 109=-, 107=+, 69=e, 81=q, 89=y, 90=z
 		//w=87 a=65 s=83 d=68  -  up=38 left=37 down=40 right=39
 		var keyID = parseInt(key.which,10);
 		if(keyID===17) holdingCTRL = true;
@@ -991,21 +1018,25 @@ $(document).ready(function() {
 				var clickedLine = getClickedLine(canX, canY);
 				if(clickedLine!==false) editObj(false, clickedLine);
 			}
+		}//KEY CTRL+Z - Undo
+		else if(keyID===90 && holdingCTRL && !holdingClick && state==="edit") {
+			lineStop();
+			undo();
+		}//KEY CTRL+Z - Undo
+		else if(keyID===89 && holdingCTRL && !holdingClick && state==="edit") {
+			lineStop();
+			redo();
 		}//KEY SPACE - Start/Stop Simulation
 		else if(keyID===32 && !holdingClick) {
 			if(state==="edit") {
-				if(lineStart!==false) {
-					lineStart=false;
-					$("#canvas").off(mobile?"touchmove.line":"mousemove.line");
-				}
+				lineStop();
 				startSimulation();
 			}
 			else stopSimulation();
 		}//KEY Esc - Cancel
 		else if(keyID===27) {
 			if(lineStart!==false) {
-				lineStart=false;
-				$("#canvas").off(mobile?"touchmove.line":"mousemove.line");
+				lineStop();
 				redraw();
 			}
 			else if(state!=="edit" && !holdingClick) stopSimulation();
@@ -1106,7 +1137,7 @@ $(document).ready(function() {
 		dragLastY = realY;
 		$("#canvas").on(mobile?"touchmove.drag":"mousemove.drag", function(e) {
 			e.preventDefault();
-			edgeScroll();
+			edgeScrollStart();
 			if(holdingSHIFT) {
 				nodes[dragId].x=Math.round(realX/gridSpacing)*gridSpacing;
 				nodes[dragId].y=Math.round(realY/gridSpacing)*gridSpacing;
@@ -1133,6 +1164,7 @@ $(document).ready(function() {
 				$("#canvas").off(mobile?"touchmove.drag":"mousemove.drag");
 				dragging = false;
 				tabID=0;
+				edgeScrollStop();
 				addUndo();
 			}
 			$("#canvas").off(mobile?"touchmove.pan":"mousemove.pan");
@@ -1167,35 +1199,41 @@ $(document).ready(function() {
 	}
 	
 	//AUTOSCROLL Canvas when mouse on edge
-	function edgeScroll() {
+	function edgeScrollStart() {
 		if(globalX<edgeSize || globalX>(width-edgeSize) || globalY<edgeSize || globalY>(height-edgeSize)) {
-			if(edgeScrolling) return;
-			edgeScrollTimer = setTimeout(edgeScroll, 10);
-			var panAmount = (gridSpacing/zoom)/10;
-			if(globalX<edgeSize) {//LEFT
-				canvasX+=panAmount;
-				ctx.translate(panAmount, 0);
-				realX-=panAmount;
+			if(!edgeScrolling) {
+				edgeScrolling=true;
+				edgeScroll();
 			}
-			else if(globalX>(width-edgeSize)) {//RIGHT
-				canvasX-=panAmount;
-				ctx.translate(-panAmount, 0);
-				realX+=panAmount;
-			}
-			if(globalY<edgeSize) {//UP
-				canvasY+=panAmount;
-				ctx.translate(0, panAmount);
-				realY-=panAmount;
-			}
-			else if(globalY>(height-edgeSize)) {//DOWN
-				canvasY-=panAmount;
-				ctx.translate(0, -panAmount);
-				realY+=panAmount;
-			}
-			if(dragging) dragMovePos();
-			redraw();
 		}
-		else if(edgeScrolling) edgeScrollStop();
+		else edgeScrollStop();
+	}
+	function edgeScroll() {
+		edgeScrollTimer = setTimeout(edgeScroll, 5);
+		edgeScrolling=true;
+		var panAmount=1/(zoom/8);
+		if(globalX<edgeSize) {//LEFT
+			canvasX+=panAmount;
+			ctx.translate(panAmount, 0);
+			realX-=panAmount;
+		}
+		else if(globalX>(width-edgeSize)) {//RIGHT
+			canvasX-=panAmount;
+			ctx.translate(-panAmount, 0);
+			realX+=panAmount;
+		}
+		if(globalY<edgeSize) {//UP
+			canvasY+=panAmount;
+			ctx.translate(0, panAmount);
+			realY-=panAmount;
+		}
+		else if(globalY>(height-edgeSize)) {//DOWN
+			canvasY-=panAmount;
+			ctx.translate(0, -panAmount);
+			realY+=panAmount;
+		}
+		if(dragging) dragMovePos();
+		redraw();
 	}
 	function edgeScrollStop() {//STOP
 		clearTimeout(edgeScrollTimer);
@@ -1308,10 +1346,7 @@ $(document).ready(function() {
 		$("#StartControls").addClass("hidden");
 		$("#StopControls").removeClass("hidden");
 		$(".node, #EditControls .button").addClass("disabled");
-		if(lineStart!==false) {
-			lineStart=false;
-			$("#canvas").off(mobile?"touchmove.line":"mousemove.line");
-		}
+		lineStop();
 		state="running";
 		TimeoutID = setTimeout(Tick, tickSpeed);
 		redraw();
@@ -1523,7 +1558,6 @@ $(document).ready(function() {
 		}
 		tickSpeed = undoStack[undoPointer][5];
 		$("#speedSetting").html("Ticks per second: "+Math.round(1000/tickSpeed));
-		dragId=0;
 		tabID=0;
 		lineStart=false;
 		lineLast=false;
@@ -1656,6 +1690,14 @@ $(document).ready(function() {
 		dragging = true;
 		redraw();
 		nodeMoveActivate();
+	}
+	
+	//Stop line
+	function lineStop() {
+		if(lineStart!==false) {
+			lineStart=false;
+			$("#canvas").off(mobile?"touchmove.line":"mousemove.line");
+		}
 	}
 	
 	//Draw grid
@@ -1791,13 +1833,11 @@ $(document).ready(function() {
 					var dupes = findDuplicateLine(clickResult);
 					if(!(clickResult===false || clickResult===lineStart) && design[nodes[clickResult].t].canEndLine && !dupes) {
 						lines.push({a:lineStart, b:clickResult});
-						lineStart=false;
-						$("#canvas").off(mobile?"touchmove.line":"mousemove.line");
+						lineStop();
 						addUndo();
 					}
 					else if(clickResult===false) {
-						lineStart=false;
-						$("#canvas").off(mobile?"touchmove.line":"mousemove.line");
+						lineStop();
 					}
 				}
 			}
