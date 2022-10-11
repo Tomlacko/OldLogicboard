@@ -18,7 +18,7 @@ body {
 	margin-left:10px;
 }
 
-#SelectNode, #StopControl {
+.toolbar {
 	margin-left:10px;
 	margin-top:5px;
 	margin-bottom:5px;
@@ -27,6 +27,11 @@ body {
 	padding:5px;
 }
 
-#SelectNode button, #StopControl button {
+#Options {
+	float:right;
+	margin-right:10px;
+}
+
+.toolbar button {
 	cursor:pointer;
 }

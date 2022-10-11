@@ -8,7 +8,7 @@
 		<meta http-equiv="content-type" content="text/html; charset=UTF-8" />
 	</head>
 	<body>
-		<div id="SelectNode">
+		<div id="SelectNode" class="toolbar">
 			<button id="start" name="start">START</button>
 			<button id="pan" name="pan">Pan</button>
 			<button id="edit" name="edit">Edit</button>
@@ -25,9 +25,15 @@
 			<button id="output" name="nodeOutput">Output</button>
 			<button id="text" name="nodeText">Text</button>
 		</div>
-		<div id="StopControl" class="hidden">
+		<div id="StopControl" class="toolbar hidden">
 			<button id="stop" name="stop">STOP</button>
 			<button id="pause" name="pause">Pause</button>
+			<button id="step" name="step" class="hidden">Step&gt;&gt;</button>
+		</div>
+		<div id="Options" class="toolbar">
+			<button id="zoom" name="zoom">Zoom+</button>
+			<button id="unzoom" name="unzoom">Zoom-</button>
+			<button id="speed" name="speed">Speed</button>
 		</div>
 		<canvas id="canvas" width="1600" height="900" style="display:inline-block; border:1px solid #CCC;"></canvas>
 	</body>

@@ -45,7 +45,7 @@ $(document).ready(function() {
 	};
 	
 	var clear = function() {
-		ctx.clearRect(0-canvasX, 0-canvasY, width+canvasX, height+canvasY);
+		ctx.clearRect(-canvasX, -canvasY, width, height);
 	};
 	
 	var degToRad = function(deg) {
@@ -68,15 +68,16 @@ $(document).ready(function() {
 	ctx.canvas.height = window.innerHeight-70;
 	var width = canvas.width;
 	var height = canvas.height;
+	var zoom = 1;
+	
 	ctx.font = "16px Arial";
 	ctx.textAlign="center";
 	ctx.textBaseline="middle";
 	
 	var panLastX = 0;
 	var panLastY = 0;
-	var canvasX = 50;
-	var canvasY = 50;
-	ctx.translate(canvasX, canvasY);
+	var canvasX = 0;
+	var canvasY = 0;
 	var dragLastX = 0;
 	var	dragLastY = 0;
 	var dragId = 0;
@@ -122,6 +123,8 @@ $(document).ready(function() {
 			state="edit";
 			$("#SelectNode").removeClass("hidden");
 			$("#StopControl").addClass("hidden");
+			$("#step").addClass("hidden");
+			$("#pause").html("Pause");
 			selected="toggle";
 			resetPower();
 			redrawAll();
@@ -129,14 +132,26 @@ $(document).ready(function() {
 		else if($(this).attr("id")==="pause" && state==="paused") {
 			state="running";
 			$(this).html("Pause");
+			$("#step").addClass("hidden");
 			TimeoutID = setTimeout(Tick, tickSpeed);
 		}
 		else if($(this).attr("id")==="pause") {
 			state="paused";
 			$(this).html("Continue");
+			$("#step").removeClass("hidden");
+			clearTimeout(TimeoutID);
+		}
+		else if($(this).attr("id")==="step" && state==="paused") {
+			Tick();
 			clearTimeout(TimeoutID);
 		}
 		else alert("Button Error");
+	});
+	
+	$("#speed").on("click", function() {
+		var newSpeed = prompt("Simulation speed (Ticks per second): (Hz)", "100");
+		if(isNaN(parseInt(newSpeed)) || parseInt(newSpeed)<=0.1 || parseInt(newSpeed)>1000) alert("Invalid number!");
+		else tickSpeed=(1/newSpeed)*1000;
 	});
 	
 	$("#canvas").on("mousedown", function(event) {
@@ -240,7 +255,7 @@ $(document).ready(function() {
 					nodes[i].powered = testNot(i);
 					break;
 				case "delay":
-					if(testOr(i)) {
+					if(testOr(i) || (nodes[i].countdown<nodes[i].delay && !nodes[i].powered)) {
 						if(nodes[i].countdown<=0) nodes[i].powered = true;
 						else nodes[i].countdown--;
 					}
@@ -283,7 +298,7 @@ $(document).ready(function() {
 	var resetPower = function() {
 		for(j=0; j<nodes.length; j++) {
 			if(nodes[j].type!=="source" && nodes[j].type!=="text" && nodes[j].type!=="not") nodes[j].powered = false;
-			else if(nodes[j].type==="not") nodes[j].powered = true;
+			else if(nodes[j].type==="not") nodes[j].powered = nodes[j].startPowered;
 			if(nodes[j].type==="delay") nodes[j].countdown = nodes[j].delay;
 		}
 		for(j=0; j<lines.length; j++) {
@@ -341,6 +356,7 @@ $(document).ready(function() {
 	var addNodeCircle = function(type, powered, x1, y1, r, name) {
 		if(name==undefined) name="";
 		nodes.push({type:type, id:nodeCount, powered:powered, x1:x1, y1:y1, r, name:name});
+		if(type=="not") nodes[nodes.length-1].startPowered=powered;
 		modifyNodeCount(type, 1);
 		nodeCount++;
 		return nodes.length-1;
@@ -455,7 +471,7 @@ $(document).ready(function() {
 	var getClickedLine = function(x, y) {
 		if(lines.length===0) return false;
 		for(i = lines.length-1; i>=0; i--) {
-			if((Math.sqrt(Math.pow(Math.abs(getMiddleX(getRealID(lines[i].startID))-x), 2)+Math.pow(Math.abs(getMiddleY(getRealID(lines[i].startID))-y), 2))+Math.sqrt(Math.pow(Math.abs(getMiddleX(getRealID(lines[i].endID))-x), 2)+Math.pow(Math.abs(getMiddleY(getRealID(lines[i].endID))-y), 2)))<(Math.sqrt(Math.pow(Math.abs(getMiddleX(getRealID(lines[i].startID))-getMiddleX(getRealID(lines[i].endID))), 2)+Math.pow(Math.abs(getMiddleY(getRealID(lines[i].startID))-getMiddleY(getRealID(lines[i].endID))), 2))+2)) return i;
+			if((Math.sqrt(Math.pow(Math.abs(getMiddleX(getRealID(lines[i].startID))-x), 2)+Math.pow(Math.abs(getMiddleY(getRealID(lines[i].startID))-y), 2))+Math.sqrt(Math.pow(Math.abs(getMiddleX(getRealID(lines[i].endID))-x), 2)+Math.pow(Math.abs(getMiddleY(getRealID(lines[i].endID))-y), 2)))<(Math.sqrt(Math.pow(Math.abs(getMiddleX(getRealID(lines[i].startID))-getMiddleX(getRealID(lines[i].endID))), 2)+Math.pow(Math.abs(getMiddleY(getRealID(lines[i].startID))-getMiddleY(getRealID(lines[i].endID))), 2))+0.05)) return i;
 		}
 		return false;
 	};
@@ -483,7 +499,7 @@ $(document).ready(function() {
 							addNode(selected, false, x-(defaultWidth/2), y-(defaultHeight/2), x+(defaultWidth/2), y+(defaultHeight/2), "", -1);
 							break;
 						case "delay":
-							var delay=prompt("Set delay: (100=1sec)", "50");
+							var delay=prompt("Set delay: (ticks)", "5");
 							if(isNaN(parseInt(delay)) || parseInt(delay)<0) alert("You have to enter a number!");
 							else addNode(selected, false, x-(defaultWidth/2), y-(defaultHeight/2), x+(defaultWidth/2), y+(defaultHeight/2), "", parseInt(delay));
 							break;
@@ -517,16 +533,20 @@ $(document).ready(function() {
 				}
 			}
 			else if(selected==="edit" && clickResult!==false) {
-				if(nodes[clickResult].type==="delay" || nodes[clickResult].type==="button" || nodes[clickResult].type==="toggle" || nodes[clickResult].type==="text" || nodes[clickResult].type==="output") {
+				if(nodes[clickResult].type==="delay" || nodes[clickResult].type==="button" || nodes[clickResult].type==="toggle" || nodes[clickResult].type==="text" || nodes[clickResult].type==="output" || nodes[clickResult].type==="not") {
 					switch(nodes[clickResult].type) {
 						case "delay":
-							var delay=prompt("Set delay: (100=1sec)", "50");
+							var delay=prompt("Set delay: (ticks)", nodes[clickResult].delay);
 							if(isNaN(parseInt(delay)) || parseInt(delay)<0) alert("You have to enter a number!");
 							else nodes[clickResult].delay=parseInt(delay);
 							break;
 						case "text":
 							var name = prompt("Enter text:");
 							if(name!=undefined) nodes[clickResult].name = name;
+							break;
+						case "not":
+							nodes[clickResult].powered = !nodes[clickResult].powered;
+							nodes[clickResult].startPowered = !nodes[clickResult].startPowered;
 							break;
 						default:
 							var name = prompt("Enter name:");
