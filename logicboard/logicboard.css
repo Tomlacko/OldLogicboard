@@ -265,7 +265,7 @@ input[type=button] {
 }
 
 .node:hover:not(.disabled):not(.selected) {
-	background-color:#5D78BD;
+	background-color:#5280F5;
 }
 
 .node.selected {

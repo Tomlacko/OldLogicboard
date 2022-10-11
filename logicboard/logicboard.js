@@ -173,8 +173,6 @@ $(document).ready(function() {
 	var realY = 0;
 	var dragId = 0;
 	var dragging = false;
-	var lastDelay = 5;
-	var lastPulser = 5;
 	var holdingClick = false;
 	var holdingCTRL = false;
 	var lineStart = false;
@@ -227,7 +225,7 @@ $(document).ready(function() {
 		{//1
 			"fullName":"Switch",
 			"shape":"circle",
-			"radius":24,
+			"radius":30,
 			"outline":true,
 			"textColor":blueColor,
 			"textSize":16,
@@ -238,7 +236,7 @@ $(document).ready(function() {
 		{//2
 			"fullName":"Button",
 			"shape":"circle",
-			"radius":24,
+			"radius":30,
 			"outline":true,
 			"textColor":blueColor,
 			"textSize":16,
@@ -249,7 +247,7 @@ $(document).ready(function() {
 		{//3
 			"fullName":"Pulser",
 			"shape":"circle",
-			"radius":24,
+			"radius":30,
 			"outline":true,
 			"textColor":textNodeColor,
 			"textSize":16,
@@ -284,7 +282,7 @@ $(document).ready(function() {
 		{//6
 			"fullName":"NOT",
 			"shape":"circle",
-			"radius":24,
+			"radius":20,
 			"outline":true,
 			"textColor":textNodeColor,
 			"textSize":16,
@@ -609,10 +607,11 @@ $(document).ready(function() {
 	//Change SPEED
 	$("#speed").on("click", function() {
 		var newSpeed = prompt("Ticks per second: (Hz)  [Default=100]", (1000/tickSpeed));
-		if(newSpeed==null || newSpeed===false) return;
-		else if(isNaN(parseFloat(newSpeed)) || parseFloat(newSpeed)<0.1 || parseFloat(newSpeed)>1000) alert("Invalid number!");
+		newSpeed = formatNum(newSpeed);
+		if(newSpeed===false) return;
+		if(newSpeed<0.1 || newSpeed>1000) alert("Invalid number!");//popupMsg();
 		else {
-			tickSpeed=1000/parseFloat(newSpeed);
+			tickSpeed=1000/newSpeed;
 			$("#speedSetting").html("Ticks per second: "+newSpeed);
 			updateDebug();
 		}
@@ -620,7 +619,7 @@ $(document).ready(function() {
 	
 	//Enable Debug Info
 	$("#debugSlider").on("click", function() {
-		if($("#debugSlider").hasClass("activated")) {
+		if($("#debug").hasClass("hidden")) {
 			updateDebug();
 			$("#debug").removeClass("hidden");
 		}
@@ -631,22 +630,22 @@ $(document).ready(function() {
 	
 	//Show Grid Slider
 	$("#gridSlider").on("click", function() {
-		if($("#gridSlider").hasClass("activated")) {
-			showGrid=true;
+		if(showGrid) {
+			showGrid=false;
 		}
 		else {
-			showGrid=false;
+			showGrid=true;
 		}
 		redraw();
 	});
 	
 	//Track viewport with UNDO
 	$("#undoSlider").on("click", function() {
-		if($("#undoSlider").hasClass("activated")) {
-			undoTrackView=true;
+		if(undoTrackView) {
+			undoTrackView = false;
 		}
 		else {
-			undoTrackView = false;
+			undoTrackView=true;
 		}
 		redraw();
 	});
@@ -672,7 +671,7 @@ $(document).ready(function() {
 	
 	//TOOLBAR - Select item
 	$(".node, #delete, #edit, #replace, #select").on("click", function() {
-		if(state==="edit") {
+		if(state==="edit" && !$(this).hasClass("disabled")) {
 			if(lineStart!==false) {
 				lineStart=false;
 				$("#canvas").off("mousemove.line");
@@ -692,6 +691,7 @@ $(document).ready(function() {
 			if($(this).hasClass("node") && !$(this).is("#line")) {
 				selected = parseInt($(this).attr("id"));
 				selectedNode = selected;
+				$("#replace").removeClass("disabled");
 				$(".placeOpt").addClass("hidden");
 				if($("#place"+selected).length===1) $("#place, #place"+selected).removeClass("hidden");
 				else $("#place").addClass("hidden");
@@ -699,6 +699,7 @@ $(document).ready(function() {
 			else {
 				selected = $(this).attr("id");
 				if(!$(this).is("#replace")) $("#place").addClass("hidden");
+				if($(this).is("#line")) $("#replace").addClass("disabled");
 			}
 			$(this).addClass("selected");
 		}
@@ -1132,6 +1133,7 @@ $(document).ready(function() {
 		$("#pause").attr("src", "icons/pause.png");
 		$("#step").addClass("disabled");
 		$(".node, #EditControls .button").removeClass("disabled");
+		if(selected==="line") $("#replace").addClass("disabled");
 		resetPower();
 		redraw();
 	}
@@ -1154,10 +1156,10 @@ $(document).ready(function() {
 	function Tick() {
 		TimeoutID = setTimeout(Tick, tickSpeed);
 		ticks+=1;
-		for(i=0; i<lines.length; i++) {
+		for(var i=0; i<lines.length; i++) {
 			lines[i].p = nodes[lines[i].a].p;
 		}
-		for(i=0; i<nodes.length; i++) {
+		for(var i=0; i<nodes.length; i++) {
 			switch(nodes[i].t) {
 				case 1://SWITCH
 					//DO NOTHING
@@ -1240,9 +1242,9 @@ $(document).ready(function() {
 	//get AND connection
 	function testAnd(id) {
 		var result = false;
-		for(j=0; j<lines.length; j++) {
-			if(lines[j].b===id && lines[j].p) result = true;
-			if(lines[j].b===id && !lines[j].p) {
+		for(var i=0; i<lines.length; i++) {
+			if(lines[i].b===id && lines[i].p) result = true;
+			if(lines[i].b===id && !lines[i].p) {
 				result = false;
 				break;
 			}
@@ -1252,22 +1254,22 @@ $(document).ready(function() {
 	
 	//get OR connection
 	function testOr(id) {
-		for(j=0; j<lines.length; j++) {
-			if(lines[j].b===id && lines[j].p) return true;
+		for(var i=0; i<lines.length; i++) {
+			if(lines[i].b===id && lines[i].p) return true;
 		}
 		return false;
 	}
 	
 	//RESET Objects after simulation STOP
 	function resetPower() {
-		for(j=0; j<nodes.length; j++) {
-			if(nodes[j].q!=undefined) nodes[j].p = nodes[j].q;
-			else if(nodes[j].p!=undefined) nodes[j].p = false;
-			if(nodes[j].d!=undefined) nodes[j].c = nodes[j].d;
-			if(nodes[j].f!=undefined) nodes[j].f = false;
+		for(var i=0; i<nodes.length; i++) {
+			if(nodes[i].q!=undefined) nodes[i].p = nodes[i].q;
+			else if(nodes[i].p!=undefined) nodes[i].p = false;
+			if(nodes[i].d!=undefined) nodes[i].c = nodes[i].d;
+			if(nodes[i].f!=undefined) nodes[i].f = false;
 		}
-		for(j=0; j<lines.length; j++) {
-			lines[j].p = false;
+		for(var i=0; i<lines.length; i++) {
+			lines[i].p = false;
 		}
 	}
 	
@@ -1292,6 +1294,7 @@ $(document).ready(function() {
 		if(design[nodes[id].t].outline) return design[nodes[id].t].radius + outlineWidth/2;
 		else return design[nodes[id].t].radius;
 	}
+	
 	//GET Object size
 	function getSizeX(id) {
 		if(nodes[id].t===13) return nodes[id].w/2;
@@ -1368,8 +1371,8 @@ $(document).ready(function() {
 	
 	//Find duplicate line - prevent creating multiple identical lines
 	function findDuplicateLine(id) {
-		for(j=0; j<lines.length; j++) {
-			if(lines[j].a===lineStart && lines[j].b===id) return true;
+		for(var i=0; i<lines.length; i++) {
+			if(lines[i].a===lineStart && lines[i].b===id) return true;
 		}
 		return false;
 	}
@@ -1377,15 +1380,15 @@ $(document).ready(function() {
 	//SHIFT / recalculate IDs after object delete/drag
 	function reorganize(pos) {
 		var uptop = [];
-		for(j=0; j<lines.length; j++) {
-			if(lines[j].a===pos) uptop.push([j, 1]);
-			if(lines[j].b===pos) uptop.push([j, 2]);
-			if(lines[j].a>pos) lines[j].a--;
-			if(lines[j].b>pos) lines[j].b--;
+		for(var i=0; i<lines.length; i++) {
+			if(lines[i].a===pos) uptop.push([i, 1]);
+			if(lines[i].b===pos) uptop.push([i, 2]);
+			if(lines[i].a>pos) lines[i].a--;
+			if(lines[i].b>pos) lines[i].b--;
 		}
-		for(j=0; j<uptop.length; j++) {
-			if(uptop[j][1]===1) lines[uptop[j][0]].a=nodes.length-1;
-			if(uptop[j][1]===2) lines[uptop[j][0]].b=nodes.length-1;
+		for(var i=0; i<uptop.length; i++) {
+			if(uptop[i][1]===1) lines[uptop[i][0]].a=nodes.length-1;
+			if(uptop[i][1]===2) lines[uptop[i][0]].b=nodes.length-1;
 		}
 		if(lineLast!==false) {
 			if(lineLast>pos) lineLast--;
@@ -1395,8 +1398,8 @@ $(document).ready(function() {
 	
 	//DELETE object
 	function deleteObj(id) {
-		for(j = lines.length-1; j>=0; j--) {
-			if(lines[j].a===id || lines[j].b===id) lines.splice(j, 1);
+		for(var i=lines.length-1; i>=0; i--) {
+			if(lines[i].a===id || lines[i].b===id) lines.splice(i, 1);
 		}
 		if(id<nodes.length-1) {
 			nodes.splice(id, 1);
@@ -1474,11 +1477,11 @@ $(document).ready(function() {
 		var scrStartY = -canvasY;
 		var scrEndX = scrStartX+(width/zoom);
 		var scrEndY = scrStartY+(height/zoom);
-		for(x = Math.round(scrStartX/gridSpacing)*gridSpacing; x<=scrEndX; x+=gridSpacing) {
+		for(var x=Math.round(scrStartX/gridSpacing)*gridSpacing; x<=scrEndX; x+=gridSpacing) {
 			if(x%(gridSpacing*2)===0) drawGridLine(x, scrStartY, x, scrEndY, gridLineWidthBig);
 			else drawGridLine(x, scrStartY, x, scrEndY, gridLineWidth);
 		}
-		for(y = Math.round(scrStartY/gridSpacing)*gridSpacing; y<=scrEndY; y+=gridSpacing) {
+		for(var y=Math.round(scrStartY/gridSpacing)*gridSpacing; y<=scrEndY; y+=gridSpacing) {
 			if(y%(gridSpacing*2)===0) drawGridLine(scrStartX, y, scrEndX, y, gridLineWidthBig);
 			else drawGridLine(scrStartX, y, scrEndX, y, gridLineWidth);
 		}
@@ -1488,10 +1491,10 @@ $(document).ready(function() {
 	function redraw() {
 		clear();
 		if(showGrid && zoom>=0.125) drawGrid();
-		for(i=0; i<lines.length; i++) {
+		for(var i=0; i<lines.length; i++) {
 			drawLine(nodes[lines[i].a].x, nodes[lines[i].a].y, nodes[lines[i].b].x, nodes[lines[i].b].y, lines[i].p);
 		}
-		for(i=0; i<nodes.length; i++) {
+		for(var i=0; i<nodes.length; i++) {
 			//DRAW NODES
 			if(design[nodes[i].t].shape==="rect" && nodes[i].t!==13) {
 				drawRect(nodes[i].x-getSizeX(i), nodes[i].y-getSizeY(i), nodes[i].x+getSizeX(i), nodes[i].y+getSizeY(i), nodes[i].p, design[nodes[i].t].outline);
@@ -1504,15 +1507,31 @@ $(document).ready(function() {
 			}
 			//DRAW NODE TEXT
 			if([1, 2, 11, 12, 13].includes(nodes[i].t)) {//switch, button, note, output, text
-				var text = nodes[i].n;
+				var txt = nodes[i].n;
 			}
 			else if([4, 5, 6, 8, 9, 10].includes(nodes[i].t)) {//or, and, not, toggle, monostable, random
-				var text = design[nodes[i].t].fullName;
+				var txt = design[nodes[i].t].fullName;
 			}
 			else if([3, 7].includes(nodes[i].t)) {
-				var text = nodes[i].d;
+				var txt = nodes[i].d;
 			}
-			if(text!=="") drawText(nodes[i].x, nodes[i].y, text, design[nodes[i].t].textColor, design[nodes[i].t].textSize);
+			if(txt!=="") {
+				if(nodes[i].t===12) {//DRAW TEXT ABOVE OUTPUT WHEN TOO LONG
+					ctx.font = design[nodes[i].t].textSize+"px Arial";
+					var measure = parseFloat(ctx.measureText(txt).width.toFixed(2));
+					if(measure>design[12].width) drawText(nodes[i].x, nodes[i].y-(design[12].height/2)-(design[12].textSize/2)-2, txt, design[nodes[i].t].textColor, design[nodes[i].t].textSize);
+					else drawText(nodes[i].x, nodes[i].y, txt, design[nodes[i].t].textColor, design[nodes[i].t].textSize);
+				}
+				/*// DRAW TEXT ABOVE INPUTS WHEN TOO LONG
+				else if([1, 2].includes(nodes[i].t)) {
+					ctx.font = design[nodes[i].t].textSize+"px Arial";
+					var measure = parseFloat(ctx.measureText(txt).width.toFixed(2))/2;
+					if(measure>getSizeR(i)) drawText(nodes[i].x, nodes[i].y-(getRadius(i))-(design[nodes[i].t].textSize/2)-2, txt, design[nodes[i].t].textColor, design[nodes[i].t].textSize);
+					else drawText(nodes[i].x, nodes[i].y, txt, design[nodes[i].t].textColor, design[nodes[i].t].textSize);
+				}
+				*/
+				else drawText(nodes[i].x, nodes[i].y, txt, design[nodes[i].t].textColor, design[nodes[i].t].textSize);
+			}
 		}
 		if(lineStart!==false) drawLine(nodes[lineStart].x, nodes[lineStart].y, realX, realY, false);
 		updateDebug();
@@ -1526,7 +1545,7 @@ $(document).ready(function() {
 	//GET CLICKED OBJECT ID
 	function getClickedNode(x, y) {
 		if(nodes.length===0) return false;
-		for(i = nodes.length-1; i>=0; i--) {
+		for(var i=nodes.length-1; i>=0; i--) {
 			if(design[nodes[i].t].shape==="rect") {
 				if(x>=nodes[i].x-getWidth(i)/2 && nodes[i].x+getWidth(i)/2>=x && y>=nodes[i].y-getHeight(i)/2 && nodes[i].y+getHeight(i)/2>=y) return i;
 			}
@@ -1547,7 +1566,7 @@ $(document).ready(function() {
 	//GET CLICKED LINE ID
 	function getClickedLine(x, y) {
 		if(lines.length===0) return false;
-		for(i = lines.length-1; i>=0; i--) {
+		for(var i=lines.length-1; i>=0; i--) {
 			if((Math.sqrt(Math.pow(Math.abs(nodes[lines[i].a].x-x), 2)+Math.pow(Math.abs(nodes[lines[i].a].y-y), 2))+Math.sqrt(Math.pow(Math.abs(nodes[lines[i].b].x-x), 2)+Math.pow(Math.abs(nodes[lines[i].b].y-y), 2)))<(Math.sqrt(Math.pow(Math.abs(nodes[lines[i].a].x-nodes[lines[i].b].x), 2)+Math.pow(Math.abs(nodes[lines[i].a].y-nodes[lines[i].b].y), 2))+lineClickRadius)) return i;
 		}
 		return false;
@@ -1571,12 +1590,17 @@ $(document).ready(function() {
 					}
 				}
 				else if(lineStart!==false) {//END/CREATE LINE
-					if(!(clickResult===false || clickResult===lineStart) && design[nodes[clickResult].t].canEndLine && !findDuplicateLine(clickResult)) {
+					var dupes = findDuplicateLine(clickResult);
+					if(!(clickResult===false || clickResult===lineStart) && design[nodes[clickResult].t].canEndLine && !dupes) {
 						lines.push({a:lineStart, b:clickResult});
+						lineStart=false;
+						$("#canvas").off("mousemove.line");
 						addUndo();
 					}
-					lineStart=false;
-					$("#canvas").off("mousemove.line");
+					else if(clickResult===false) {
+						lineStart=false;
+						$("#canvas").off("mousemove.line");
+					}
 				}
 			}
 			else if(!["select", "edit", "delete", "replace"].includes(selected)) {
@@ -1586,17 +1610,20 @@ $(document).ready(function() {
 				else {//CREATE NEW OBJECT
 					switch(selected) {
 						case 1://SWITCH
-							nodes.push({t:1, n:"Switch", p:false, x:x, y:y});
+							nodes.push({t:1, n:formatText($("#place"+selected+" input").val(), "Switch"), p:false, x:x, y:y});
 							break;
 						case 2://BUTTON
-							nodes.push({t:2, n:"Button", p:false, x:x, y:y});
+							nodes.push({t:2, n:formatText($("#place"+selected+" input").val(), "Button"), p:false, x:x, y:y});
 							break;
 						case 3://PULSER
-							var delay=prompt("Set delay: (ticks)", lastPulser);
-							if(isNaN(parseFloat(delay)) || parseFloat(delay)<1) alert("Invalid number!");
+							var delay=formatNum($("#place"+selected+" input").val());
+							if(delay===false || delay<0 || delay>3600000) {
+								//popupMsg("You have entered an invalid value!");
+								return;
+							}
 							else {
-								lastPulser = Math.round(parseFloat(delay));
-								nodes.push({t:3, p:false, x:x, y:y, d:lastPulser, c:lastPulser});
+								delay = Math.round(delay);
+								nodes.push({t:3, p:false, x:x, y:y, d:delay, c:delay});
 							}
 							break;
 						case 4://OR
@@ -1606,18 +1633,23 @@ $(document).ready(function() {
 							nodes.push({t:5, p:false, x:x, y:y});
 							break;
 						case 6://NOT
-							nodes.push({t:6, p:true, q:true, x:x, y:y});
+							var pwr = $("#place"+selected+" .slider").hasClass("activated");
+							nodes.push({t:6, p:pwr, q:pwr, x:x, y:y});
 							break;
 						case 7://DELAY
-							var delay=prompt("Set delay: (ticks)", lastDelay);
-							if(isNaN(parseFloat(delay)) || parseFloat(delay)<1) alert("Invalid number!");
+							var delay=formatNum($("#place"+selected+" input").val());
+							if(delay===false || delay<0 || delay>3600000) {
+								//popupMsg("You have entered an invalid number!");
+								return;
+							}
 							else {
-								lastDelay = Math.round(parseFloat(delay));
-								nodes.push({t:7, p:false, d:lastDelay, c:lastDelay, x:x, y:y});
+								delay = Math.round(delay);
+								nodes.push({t:7, p:false, d:delay, c:delay, x:x, y:y});
 							}
 							break;
 						case 8://TOGGLE
-							nodes.push({t:8, p:false, q:false, f:false, x:x, y:y});
+							var pwr = $("#place"+selected+" .slider").hasClass("activated");
+							nodes.push({t:8, p:pwr, q:pwr, f:false, x:x, y:y});
 							break;
 						case 9://MONOSTABLE
 							nodes.push({t:9, p:false, f:false, x:x, y:y});
@@ -1627,19 +1659,23 @@ $(document).ready(function() {
 							break;
 						case 11://NOTE
 							alert("Not yet implemented!");
-							break;
+							return;
 							var note = prompt();
 							nodes.push({t:11, p:false, n:note, x:x, y:y});
 							break;
 						case 12://OUTPUT LAMP
-							nodes.push({t:12, p:false, n:"", x:Math.round(x/gridSpacing)*gridSpacing, y:Math.round(y/gridSpacing)*gridSpacing});
+							nodes.push({t:12, p:false, n:formatText($("#place"+selected+" input").val()), x:Math.round(x/gridSpacing)*gridSpacing, y:Math.round(y/gridSpacing)*gridSpacing});
 							break;
 						case 13://TEXT
-							var text = prompt("Enter text:");
-							if(text!=undefined && text!=="" && text!==" ") {
+							var txt = formatText($("#place"+selected+" input").val())
+							if(txt==="" || txt.length>100) {
+								//popupMsg("You have to enter a valid text!");
+								return;
+							}
+							else {
 								ctx.font = design[selected].textSize+"px Arial";
-								var measure = parseFloat(ctx.measureText(text).width.toFixed(2));
-								nodes.push({t:13, n:text, x:x, y:y, w:measure});
+								var measure = parseFloat(ctx.measureText(txt).width.toFixed(2));
+								nodes.push({t:13, n:txt, x:x, y:y, w:measure});
 							}
 							break;
 					}
@@ -1669,6 +1705,42 @@ $(document).ready(function() {
 			else if(nodes[clickResult].t===1) nodes[clickResult].p=!nodes[clickResult].p;
 		}
 		redraw();
+	}
+	
+	//Format text, check empty string
+	function formatText(txt, def) {
+		if(def==undefined) def="";
+		if(typeof txt==="number") txt = txt.toString();
+		if(typeof txt!=="string") return def;
+		if(txt==="" || txt.split(" ").join("")==="") return "";
+		else {
+			for(var i=0; i<txt.length; i++) {
+				if(txt[i]!==" ") {
+					txt = txt.substr(i);
+					break;
+				}
+			}
+			for(var i=txt.length-1; i>=0; i--) {
+				if(txt[i]!==" ") {
+					txt = txt.substr(0, i+1);
+					break;
+				}
+			}
+		}
+		return txt;
+	}
+	
+	//Format number
+	function formatNum(num, def) {
+		if(def==undefined) def=false;
+		if(typeof num!=="number" && typeof num!=="string") return def;
+		if(typeof num==="string" && (num==="" || num.split(" ").join("")==="")) return def;
+		else if(typeof num==="string") {
+			if(!isNaN(parseFloat(num))) num = parseFloat(num);
+			else return def;
+		}
+		if(!isFinite(num) || isNaN(num)) return def;
+		return num;
 	}
 	
 	//Confirm Leaving the page with unsaved changes
