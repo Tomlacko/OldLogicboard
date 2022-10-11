@@ -27,6 +27,11 @@ p, strong, button {
 	font-size:14px;
 }
 
+input[type=button] {
+	cursor:pointer;
+	padding:2px;
+}
+
 .hidden {
 	display:none !important;
 }
@@ -111,7 +116,6 @@ p, strong, button {
 }
 
 #canvas {
-	background-color:#FFF;
 	box-shadow:0px 0px 15px #555;
 	position:absolute;
 }
@@ -169,7 +173,7 @@ p, strong, button {
 
 #panel {
 	width:100%;
-	min-width:700px;
+	min-width:550px;
 	height:26px;
 	background-color:#CCC;
 	padding-top:2px;
@@ -194,13 +198,13 @@ p, strong, button {
 }
 
 #MoveControls {
-	margin-left:25%;
+	margin-left:calc(50% - 254.5px);
 }
 
 #nodebar {
 	background-color:#333;
 	width:100%;
-	min-width:1240px;
+	min-width:1236px;
 	height:86px;
 	border-top:2px solid #000;
 	border-bottom:2px solid #000;
@@ -235,6 +239,20 @@ p, strong, button {
 	background-color:#777;
 }
 
+#downloadButton {
+	margin-top:10px;
+	margin-bottom:25px;
+	cursor:pointer;
+	transition:background 0.2s;
+	padding:10px;
+	border-radius:15px;
+	background-color:rgba(120, 120, 120, 0.8);
+}
+
+#downloadButton:hover {
+	background-color:#AAA;
+}
+
 #popup_info img, #popup_info p {
 	display:inline-block;
 	vertical-align:middle;
@@ -248,9 +266,14 @@ p, strong, button {
 	height:calc(100% - 125px);
 }
 
-#information {
+#InformationWrapper {
 	overflow:auto;
-	text-align:left;
-	margin-left:200px;
 	height:calc(100% - 52px);
+}
+
+#information {
+	overflow:hidden;
+	display:inline-block;
+	text-align:left;
+	width:800px;
 }
