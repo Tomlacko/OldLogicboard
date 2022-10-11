@@ -192,6 +192,7 @@ $(document).ready(function() {
 	var TimeoutID = 0;
 	var ticks = 0;
 	var savePointer = 0;
+	var BlinkTimer = 0;
 	var darkMode = false;
 	var showGrid = false;
 	var gridSpacing = 42;
@@ -407,12 +408,10 @@ $(document).ready(function() {
 	});
 	
 	//hide overlay
-	$("#close").on(mobile?"click":"mousedown", function(e) {
-		if(e.type==="click" || e.which===1) {
-			$("#information").scrollTop(0);
-			$("input").blur();
-			$(".menu, #overlay, #copyDone").addClass("hidden");
-		}
+	$("#close").on("click", function(e) {
+		$("#information").scrollTop(0);
+		$("input").blur();
+		$(".menu, #overlay, #copyDone").addClass("hidden");
 	});
 	
 	//sliders
@@ -490,7 +489,7 @@ $(document).ready(function() {
 	$("#downloadButton").on("click", function() {
 		var filename=$("#downloadName").val();
 		if(filename===false || filename==="" || filename==null) return;
-		else if(filename.length>50) alert("The file name is too long!");
+		else if(filename.length>50) popupMsg("The file name is too long!");
 		else {
 			downloadProject(filename+".lgb", btoa(JSON.stringify([nodes, lines, [fileVersion, canvasX, canvasY, zoom, tickSpeed]])));
 			$("#overlay, #menu_save").addClass("hidden");
@@ -504,14 +503,15 @@ $(document).ready(function() {
 		var inp=$("#inputFile");
 		inp.replaceWith(inp=inp.clone(true));
 		var fName = file.name;
-		if(fName.slice(-4)!==".lgb") alert("Unsupported file type!");
-		else if(file.size>50000000/*50MB*/) alert("File is too big!");
+		if(fName.slice(-4)!==".lgb") popupMsg("Unsupported file type!");
+		else if(file.size>50000000/*50MB*/) popupMsg("The file is too big!<br />(Maximum: 50MB)");
 		else {
 			var r = new FileReader();
 			r.onload = function(e) {
 				var content = e.target.result;
-				if(content==="" || content==null || content==false) alert("The file is empty!");
-				if(loadFile(content)) $(".menu, #overlay").addClass("hidden");
+				if(content==="" || content==null || content==false) popupMsg("The file is empty!");
+				else loadFile(content);
+				$(".menu, #overlay").addClass("hidden");
 			};
 			r.readAsText(file);
 		}
@@ -520,8 +520,9 @@ $(document).ready(function() {
 	//load project from text input
 	$("#pasteButton").on("click", function() {
 		var filedata = $("#pasteImport").val();
-		if(filedata==="" || filedata==null || filedata==false) return false;
-		if(loadFile(filedata)) $(".menu, #overlay").addClass("hidden");
+		if(filedata==="" || filedata==null || filedata===false) return false;
+		loadFile(filedata);
+		$(".menu, #overlay").addClass("hidden");
 	});
 
 	//drag file over canvas
@@ -544,13 +545,13 @@ $(document).ready(function() {
 		$("#fileOverlay").css("opacity",0).addClass("hidden");
 		var file=e.originalEvent.dataTransfer.files[0];
 		var fName = file.name;
-		if(fName.slice(-4)!==".lgb") alert("Unsupported file type!");
-		else if(file.size>50000000/*50MB*/) alert("File is too big!");
+		if(fName.slice(-4)!==".lgb") popupMsg("Unsupported file type!");
+		else if(file.size>50000000/*50MB*/) popupMsg("The file is too big!<br />(Maximum: 50MB)");
 		else {
 			var r = new FileReader();
 			r.onload = function(e) {
 				var content = e.target.result;
-				if(content==="" || content==null || content==false) alert("The file is empty!");
+				if(content==="" || content==null || content==false) popupMsg("The file is empty!");
 				else loadFile(content);
 			};
 			r.readAsText(file);
@@ -565,14 +566,14 @@ $(document).ready(function() {
 			loadArr = JSON.parse(atob(loadProject));
 		}
 		catch(err) {
-			alert("Error!\nThe file you're trying to load is not a LogicBoard file!");
+			popupMsg("This is not a LogicBoard file!");
 			return false;
 		}
 		var oldArr=[JSON.parse(JSON.stringify(nodes)), JSON.parse(JSON.stringify(lines)), [fileVersion, canvasX, canvasY, zoom, tickSpeed]];
 		try {
 			var loadArrInfo=loadArr[2];
 			if(typeof(loadArrInfo)!=="object" || loadArrInfo[0]<fileVersion) {
-				alert("This file comes from an older version and is no longer supported!");
+				popupMsg("This file is outdated and is no longer supported!<br />- File version: "+loadArrInfo[0]+"<br />- Current version: "+fileVersion);
 				return false;
 			}
 			if(unsaved()) if(!confirm("There are unsaved changes in your current project.\nAre you sure you want to load a different one?")) return false;
@@ -592,7 +593,7 @@ $(document).ready(function() {
 			canvasY=oldArr[2][2];
 			zoom=oldArr[2][3];
 			tickSpeed=oldArr[2][4];
-			alert("Error!\nThe file you're trying to load is either corrupted or\nit isn't a LogicBoard file!");
+			popupMsg("This isn't a LogicBoard file, or the file is corrupted!");
 			return false;
 		}
 		ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -608,15 +609,16 @@ $(document).ready(function() {
 	
 	//Change SPEED
 	$("#speed").on("click", function() {
-		var newSpeed = prompt("Ticks per second: (Hz)  [Default=100]", (1000/tickSpeed));
-		newSpeed = formatNum(newSpeed);
-		if(newSpeed===false) return;
-		if(newSpeed<0.1 || newSpeed>1000) popupMsg("Invalid number!", "#F88");
-		else {
-			tickSpeed=1000/newSpeed;
-			$("#speedSetting").html("Ticks per second: "+newSpeed);
-			updateDebug();
-		}
+		popupInput("Ticks per second [Hz]:<br />Min=0.1, Max=1000<br />(Default=100)", (1000/tickSpeed), function() {
+			var newSpeed = formatNum(popupValue());
+			if(newSpeed===false || newSpeed<0.1 || newSpeed>1000) errorBlink();
+			else {
+				tickSpeed=1000/newSpeed;
+				$("#speedSetting").html("Ticks per second: "+newSpeed);
+				updateDebug();
+				popupClose();
+			}
+		});
 	});
 	
 	//Enable Debug Info
@@ -734,7 +736,7 @@ $(document).ready(function() {
 				clearTimeout(TimeoutID);
 			}
 		}
-		else alert("Button Error");
+		else popupMsg("Invalid button!");
 	});
 	
 	//BUTTON zoom+
@@ -956,20 +958,10 @@ $(document).ready(function() {
 			}
 		}//KEY E - Edit
 		else if(keyID===69/*LOL*/ && state==="edit" && !holdingClick) {
-			if(obj!==false) {
-				if(editObj(obj, false)) {
-					addUndo();
-					redraw();
-				}
-			}
+			if(obj!==false) editObj(obj, false);
 			else {
 				var clickedLine = getClickedLine(canX, canY);
-				if(clickedLine!==false) {
-					if(editObj(false, clickedLine)) {
-						addUndo();
-						redraw();
-					}
-				}
+				if(clickedLine!==false) editObj(false, clickedLine);
 			}
 		}//KEY SPACE - Start/Stop Simulation
 		else if(keyID===32 && !holdingClick) {
@@ -1135,27 +1127,30 @@ $(document).ready(function() {
 	function popupMsg(msg, color, callbackClose) {
 		var spanStart = "";
 		var spanEnd = "";
-		if(color!==undefined) {
-			spanStart = "<span style=\"color:"+color+"\">";
+		if(color!==false) {
+			if(color==undefined) color="#F66";
+			spanStart = "<span style=\"color:"+color+";\">";
 			spanEnd = "</span>";
 		}
 		$("#popupMsg").html(spanStart+msg+spanEnd);
 		$("#popupClose").removeClass("hidden");
 		$("#popupWrap").removeClass("hidden");
-		if(callbackClose!==undefined) $("#popupClose").on("click", callbackClose);
+		if(callbackClose==undefined) $("#popupClose").on("click", popupClose);
+		else $("#popupClose").on("click", callbackClose);
 	}
 	
 	//Display POPUP input
-	function popupInput(msg, pre, callbackConfirm, callbackCancel) {
+	function popupInput(msg, previousValue, callbackConfirm, callbackCancel) {
 		$("#popupMsg").html(msg);
-		if(pre==undefined) pre="";
-		$("#popupInput").val(pre);
+		if(previousValue==undefined) previousValue="";
+		$("#popupInput").val(previousValue);
 		$("#popupInput").removeClass("hidden");
 		$("#popupConfirm").removeClass("hidden");
 		$("#popupCancel").removeClass("hidden");
 		$("#popupWrap").removeClass("hidden");
 		$("#popupConfirm").on("click", callbackConfirm);
-		$("#popupCancel").on("click", callbackCancel);
+		if(callbackCancel==undefined) $("#popupCancel").on("click", popupClose);
+		else $("#popupCancel").on("click", callbackCancel);
 	}
 	
 	//Display POPUP confirm
@@ -1168,9 +1163,25 @@ $(document).ready(function() {
 		$("#popupCancel").on("click", callbackCancel);
 	}
 	
+	//Get value from pupup input
+	function popupValue() {
+		return $("#popupInput").val();
+	}
+	
 	//Input error blink
-	function inputError($obj) {
-		
+	function errorBlink($obj) {
+		if($obj==undefined) $obj=$("#popupInput");
+		clearTimeout(BlinkTimer);
+		$obj.removeClass("redBlink");
+		$obj.removeClass("redFade");
+		$obj.addClass("redBlink");
+		BlinkTimer = setTimeout(function() {
+			$obj.addClass("redFade");
+			BlinkTimer = setTimeout(function() {
+				$obj.removeClass("redFade");
+				$obj.removeClass("redBlink");
+			}, 800);
+		}, 150);
 	}
 	
 	/*-----------------------------CANVAS-LOGIC------------------------------------------------------*/
@@ -1453,6 +1464,12 @@ $(document).ready(function() {
 		}
 	}
 	
+	//Finish action
+	function finish() {
+		addUndo();
+		redraw();
+	}
+	
 	//DELETE object
 	function deleteObj(id) {
 		for(var i=lines.length-1; i>=0; i--) {
@@ -1472,11 +1489,20 @@ $(document).ready(function() {
 			if(!design[nodes[id].t].editable) return false;
 			switch(nodes[id].t) {
 				case 1: case 2: case 12://EDIT NAME (BUTTON, SWITCH, OUTPUT LAMP)
-					var name = prompt("Enter name:", nodes[id].n);
-					if(name!=undefined && name!==nodes[id].n) nodes[id].n = name;
+					popupInput("Enter new name:", nodes[id].n, function() {
+						var name=popupValue();
+						if(name!="" && name!==nodes[id].n) {
+							nodes[id].n = name;
+							finish();
+						}
+						popupClose();
+					});
 					break;
 				case 3: case 7://EDIT DELAY (PULSER, DELAY)
-					var delay=prompt("Set delay: (ticks)", nodes[id].d);
+					popupInput("Change delay: (ticks)", nodes[id].d, function() {
+						var delay = formatNum(popupValue());
+						if(delay===false || delay<0 || delay>3600000)
+					});
 					if(isNaN(parseFloat(delay)) || parseFloat(delay)<1) alert("Invalid number!");
 					else {
 						nodes[id].d=Math.round(parseFloat(delay));
@@ -1675,7 +1701,7 @@ $(document).ready(function() {
 						case 3://PULSER
 							var delay=formatNum($("#place"+selected+" input").val());
 							if(delay===false || delay<0 || delay>3600000) {
-								//popupMsg("You have entered an invalid value!");
+								popupMsg("Invalid number!");
 								return;
 							}
 							else {
@@ -1696,7 +1722,7 @@ $(document).ready(function() {
 						case 7://DELAY
 							var delay=formatNum($("#place"+selected+" input").val());
 							if(delay===false || delay<0 || delay>3600000) {
-								//popupMsg("You have entered an invalid number!");
+								popupMsg("Invalid number!");
 								return;
 							}
 							else {
@@ -1725,8 +1751,11 @@ $(document).ready(function() {
 							break;
 						case 13://TEXT
 							var txt = formatText($("#place"+selected+" input").val())
-							if(txt==="" || txt.length>100) {
-								//popupMsg("You have to enter a valid text!");
+							if(txt==="") {
+								return;
+							}
+							else if(txt.length>100) {
+								popupMsg("The text is too long!<br />(Maximum length: 100)");
 								return;
 							}
 							else {
@@ -1749,7 +1778,7 @@ $(document).ready(function() {
 				}
 			}//EDIT OBJECT PROPERTIES
 			else if(selected==="edit" && (clickResult!==false || clickResultLine!==false)) {
-				if(editObj(clickResult, clickResultLine)) addUndo();
+				editObj(clickResult, clickResultLine);
 			}//REPLACE OBJECT
 			else if((selected==="replace" || selected==="select") && clickResult!==false) {
 				alert("Not yet implemented!");
@@ -1769,7 +1798,7 @@ $(document).ready(function() {
 		if(def==undefined) def="";
 		if(typeof txt==="number") txt = txt.toString();
 		if(typeof txt!=="string") return def;
-		if(txt==="" || txt.split(" ").join("")==="") return "";
+		if(txt==="" || txt.split(" ").join("")==="") return def;
 		else {
 			for(var i=0; i<txt.length; i++) {
 				if(txt[i]!==" ") {

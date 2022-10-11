@@ -32,12 +32,26 @@ input[type=button] {
 	padding:2px;
 }
 
+input[type=text], input[type=number] {
+	border:1px solid #000;
+	padding:2px;
+}
+
 .hidden {
 	display:none !important;
 }
 
 .disabled {
 	opacity:0.2;
+}
+
+.redBlink {
+	background-color:#C00;
+}
+
+.redFade {
+	background-color:#FEFEFE;
+	transition:background-color 0.8s;
 }
 
 .slider {
