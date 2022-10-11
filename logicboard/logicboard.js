@@ -85,7 +85,7 @@ $(document).ready(function() {
 	var canvas = document.getElementById("canvas");
 	var ctx = canvas.getContext("2d");
 	ctx.canvas.width = window.innerWidth-40;
-	ctx.canvas.height = window.innerHeight-70;
+	ctx.canvas.height = window.innerHeight-80;
 	var width = canvas.width;
 	var height = canvas.height;
 	var midX = width/2;
@@ -113,17 +113,6 @@ $(document).ready(function() {
 	var globalX = midX;
 	var globalY = midY;
 	
-	//LINE PARAMETERS: startID, endID
-	
-	//NODE PARAMETERS: shape, type, powered, startPowered, delay, countdown, x1, y1, (x2, y2)/(r), name
-	
-	//TOGGLE: startPowered, fired
-	//NOT: startPowered
-	//DELAY: delay, countdown
-	//PULSER: delay, countdown
-	//RANDOM: fired
-	//MONOSTABLE: fired
-	
 	var nodes = [];
 	var nNodes = {nText:0, nSwitch:0, nButton:0, nSource:0, nOr:0, nAnd:0, nNot:0, nDelay:0, nOutput:0, nLine:0};
 	var lines = [];
@@ -149,6 +138,102 @@ $(document).ready(function() {
 	var lastDelay = 5;
 	var lastPulser = Math.round(1000/tickSpeed);
 	
+	var isMobile = function() {
+		try {
+			document.createEvent("TouchEvent");
+			return true;
+		}
+		catch(e) {
+			return false;
+		}
+	}
+	var mobile = isMobile();
+	
+	/*-----------------------------------------------------------------------------------------------*/
+	
+	//hide overlay
+	$("#close").on("mousedown", function() {
+		$(".popup, #overlay, #copyDone").addClass("hidden");
+	});
+	
+	//show settings
+	$("#settings").on("click", function() {
+		$("#overlay, #popup_settings").removeClass("hidden");
+	});
+	
+	//show load project
+	$("#load").on("click", function() {
+		if(state!=="edit") stopSimulation();
+		$("#overlay, #popup_load").removeClass("hidden");
+	});
+	
+	//show download project
+	$("#download").on("click", function() {
+		if(state!=="edit") stopSimulation();
+		$("#overlay, #popup_download").removeClass("hidden");
+	});
+	
+	//show save project
+	$("#save").on("click", function() {
+		if(state!=="edit") stopSimulation();
+		$("#overlay, #popup_save").removeClass("hidden");
+		$("#exportSave").val(btoa(JSON.stringify([nodes, lines, canvasX, canvasY, zoom])));
+	});
+	
+	//clipboard copy
+	var textToCopy = "";
+	var clipboardProject = new Clipboard("#copyButton", {
+		text: function(trigger) {
+			$("#copyDone").removeClass("hidden");
+			return textToCopy=$("#exportSave").val();
+		}
+	});
+	
+	//Change SPEED
+	$("#speed").on("click", function() {
+		var newSpeed = prompt("Simulation speed (Ticks per second): (Hz)", "100");
+		if(newSpeed==null || newSpeed===false) return;
+		else if(isNaN(parseFloat(newSpeed)) || parseFloat(newSpeed)<0.1 || parseFloat(newSpeed)>1000) alert("Invalid number!");
+		else tickSpeed=1000/parseFloat(newSpeed);
+	});
+	
+	//TOOLBAR - Select item
+	$(".node, #pan, #delete, #edit, #replace,").on("click", function() {
+		selected = $(this).attr("id");
+	});
+	
+	//START click
+	$("#start").on("click", function() {
+		startSimulation();
+	});
+	
+	//TOOLBAR - STOP / Pause / Step
+	$("#StopControls .button").on("click", function() {
+		if($(this).attr("id")==="stop") {
+			stopSimulation();
+		}
+		else if($(this).attr("id")==="pause" && state==="paused") {
+			state="running";
+			$("#pause").attr("src", "icons/pause.png");
+			TimeoutID = setTimeout(Tick, tickSpeed);
+		}
+		else if($(this).attr("id")==="pause") {
+			state="paused";
+			$("#pause").attr("src", "icons/continue.png");
+			clearTimeout(TimeoutID);
+		}
+		else if($(this).attr("id")==="step") {
+			if(state!=="paused") {
+				state="paused";
+				$("#pause").attr("src", "icons/continue.png");
+				clearTimeout(TimeoutID);
+			}
+			Tick();
+			clearTimeout(TimeoutID);
+		}
+		else alert("Button Error");
+	});
+	
 	/*-----------------------------------------------------------------------------------------------*/
 	
 	//TOOLBAR - Debug Coordinates
@@ -171,12 +256,6 @@ $(document).ready(function() {
 		if(filename==false) return;
 		else if(filename.length>50) alert("The file name is too long!");
 		else if(filename!=="" && filename!=null) downloadProject(filename+".lgb", btoa(JSON.stringify([nodes, lines, canvasX, canvasY, zoom])));
-	});
-	
-	//Display SAVE PROJECT string
-	$("#save").on("click", function() {
-		if(state!=="edit") stopSimulation();
-		prompt("Copy this text:", btoa(JSON.stringify([nodes, lines, canvasX, canvasY, zoom])));
 	});
 	
 	//LOAD PROJECT
@@ -221,59 +300,24 @@ $(document).ready(function() {
 		}
 	});
 	
-	//TOOLBAR - Select / START
-	$("#SelectNode button").on("click", function() {
-		if(["text", "switch", "button", "source", "or", "and", "not", "delay", "line", "output", "edit", "delete", "start", "pan", "toggle", "random", "pulser", "monostable"].includes($(this).attr("id"))) {
-			selected = $(this).attr("id");
-			if(selected==="start") startSimulation();
-		}
-		else alert("Button Error");
-	});
-	
-	//TOOLBAR - STOP / Pause / Step
-	$("#StopControl button").on("click", function() {
-		if($(this).attr("id")==="stop") {
-			stopSimulation();
-		}
-		else if($(this).attr("id")==="pause" && state==="paused") {
-			state="running";
-			$(this).html("Pause");
-			$("#step").addClass("hidden");
-			TimeoutID = setTimeout(Tick, tickSpeed);
-		}
-		else if($(this).attr("id")==="pause") {
-			state="paused";
-			$(this).html("Continue");
-			$("#step").removeClass("hidden");
-			clearTimeout(TimeoutID);
-		}
-		else if($(this).attr("id")==="step" && state==="paused") {
-			Tick();
-			clearTimeout(TimeoutID);
-		}
-		else alert("Button Error");
-	});
-	
 	//STOP Simulation
 	var stopSimulation = function() {
 		clearTimeout(TimeoutID);
 		state="edit";
-		$("#SelectNode").removeClass("hidden");
-		$("#StopControl").addClass("hidden");
-		$("#step").addClass("hidden");
-		$("#pause").html("Pause");
-		selected="switch";
+		$("#nodebar, #StartControls").removeClass("hidden");
+		$("#StopControls").addClass("hidden");
+		$("#pause").attr("src", "icons/pause.png");
 		resetPower();
 		redrawAll();
 	};
 	
-	//Change SPEED
-	$("#speed").on("click", function() {
-		var newSpeed = prompt("Simulation speed (Ticks per second): (Hz)", "100");
-		if(newSpeed==null || newSpeed===false) return;
-		else if(isNaN(parseFloat(newSpeed)) || parseFloat(newSpeed)<0.1 || parseFloat(newSpeed)>1000) alert("Invalid number!");
-		else tickSpeed=1000/parseFloat(newSpeed);
-	});
+	//START SIMULATION
+	var startSimulation = function() {
+		$("#nodebar, #StartControls").addClass("hidden");
+		$("#StopControls").removeClass("hidden");
+		state="running";
+		TimeoutID = setTimeout(Tick, tickSpeed);
+	};
 	
 	//TRACK global MOUSE coordinates - mousemove
 	$("#canvas").on("mousemove.global", function(event) {
@@ -508,14 +552,6 @@ $(document).ready(function() {
 			panLastY = canY;
 			redrawAll();
 		});
-	};
-	
-	//START SIMULATION
-	var startSimulation = function() {
-		$("#SelectNode").addClass("hidden");
-		$("#StopControl").removeClass("hidden");
-		state="running";
-		TimeoutID = setTimeout(Tick, tickSpeed);
 	};
 	
 	//MAIN Tick loop
@@ -802,7 +838,7 @@ $(document).ready(function() {
 		}
 		else if(state==="edit" && selected!=="pan") {
 			var clickResultLine = getClickedLine(x, y);
-			if(!["line", "start", "edit", "delete"].includes(selected)) {
+			if(!["line", "edit", "delete"].includes(selected)) {
 				if(clickResult!==false) {//ACTIVATE DRAG OBJECT
 					if(clickResult<nodes.length-1) {
 						var obj = nodes[clickResult];
