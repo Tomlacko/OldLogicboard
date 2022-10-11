@@ -61,12 +61,47 @@ $(document).ready(function() {
 		return deg*(Math.PI/180);
 	};
 	
+	//POLYFILF IF BROWSER DOES NOT SUPPORT .includes
+	if(!Array.prototype.includes) {
+		Array.prototype.includes = function(searchElement) {
+			if(this == null) throw new TypeError('Array.prototype.includes called on null or undefined');
+			var O = Object(this);
+			var len = parseInt(O.length, 10) || 0;
+			if(len===0) return false;
+			var n = parseInt(arguments[1], 10) || 0;
+			var k;
+			if(n>=0) k = n;
+			else {
+				k = len + n;
+				if(k<0) k = 0;
+			}
+			var currentElement;
+			while(k < len) {
+				currentElement = O[k];
+				if(searchElement===currentElement || (searchElement !== searchElement && currentElement !== currentElement)) return true;
+				k++;
+			}
+			return false;
+		};
+	}
+	
+	//MOZILLA :focus replacement
+	if(/Firefox/i.test(navigator.userAgent)) {
+		$(".node, .button").on("mousedown", function(e) {
+			$(".node, .button").removeClass("activated");
+			$(this).addClass("activated");
+		});
+		$(document).on("mouseup", function(e) {
+			$(".node, .button").removeClass("activated");
+		});
+	}
+	
 	//trigger file download
 	function downloadProject(filename, datastring) {
-		var element = document.createElement('a');
-		element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(datastring));
-		element.setAttribute('download', filename);
-		element.style.display = 'none';
+		var element = document.createElement("a");
+		element.setAttribute("href", "data:text/plain;charset=utf-8," + encodeURIComponent(datastring));
+		element.setAttribute("download", filename);
+		element.style.display = "none";
 		document.body.appendChild(element);
 		element.click();
 		document.body.removeChild(element);
@@ -120,6 +155,7 @@ $(document).ready(function() {
 	var selected = "s";
 	var state = "edit";
 	var TimeoutID = 0;
+	var unsaved = false;
 
 	var defaultLine = 4;
 	var defaultColor = "rgba(200, 200, 200, 255)";
@@ -159,12 +195,13 @@ $(document).ready(function() {
 	//SHAPES:   c=circle, r=rect=rectangle, o=oval
 	//TYPES:   s=switch, b=button, p=pulser, q=source, o=or, a=and, n=not, d=delay, t=toggle, m=monostable, r=random, l=output(lamp), w=text
 	
-	/*----------------------EVENTS-------------------------------------------------------------------*/
+	/*----------------------EVENTS-/-HTML------------------------------------------------------------*/
 	
 	//hide overlay
 	$("#close").on("mousedown", function() {
 		$("#information").scrollTop(0);
 		$(".popup, #overlay, #copyDone").addClass("hidden");
+		$("input").blur();
 	});
 	
 	//show settings
@@ -197,6 +234,7 @@ $(document).ready(function() {
 		else {
 			downloadProject(filename+".lgb", btoa(JSON.stringify([nodes, lines, canvasX, canvasY, zoom])));
 			$("#overlay, #popup_download").addClass("hidden");
+			unsaved=false;
 		}
 	});
 	
@@ -216,15 +254,19 @@ $(document).ready(function() {
 		}
 	});
 	
-	//load project from file
+	//load project from file button
 	$("#inputFile").change(function() {
 		var file=document.getElementById("inputFile").files[0];
+		var inp=$("#inputFile");
+		inp.replaceWith(inp=inp.clone(true));
+		if(unsaved) if(!confirm("There are unsaved changes in your current project.\nAre you sure you want to load a different one?")) return false;
 		if(file.name.slice(-4)!==".lgb") alert("Unsupported file type!");
 		else if(file.size>50000000) alert("File is too big!");
 		else {
 			var r = new FileReader();
 			r.onload = function(e) {
 				var content = e.target.result;
+				if(content==="" || content==null || content==false) alert("The file is empty!");
 				if(loadFile(content)) $(".popup, #overlay").addClass("hidden");
 			};
 			r.readAsText(file);
@@ -233,7 +275,10 @@ $(document).ready(function() {
 	
 	//load project from text input
 	$("#pasteButton").on("click", function() {
-		if(loadFile($("#pasteImport").val())) $(".popup, #overlay").addClass("hidden");
+		var filedata = $("#pasteImport").val();
+		if(filedata==="" || filedata==null || filedata==false) return false;
+		if(unsaved) if(!confirm("There are unsaved changes in your current project.\nAre you sure you want to load a different one?")) return false;
+		if(loadFile(filedata)) $(".popup, #overlay").addClass("hidden");
 	});
 
 	//drag file over canvas
@@ -249,10 +294,12 @@ $(document).ready(function() {
 		$("#fileOverlay").stop();
 		$("#fileOverlay").animate({opacity:0}, 300, function() {$("#fileOverlay").addClass("hidden")});
 	});
+	//try to LOAD FILE
 	$("#canvas").on("drop", function(e) {
 		e.preventDefault();
 		$("#fileOverlay").stop();
 		$("#fileOverlay").css("opacity",0).addClass("hidden");
+		if(unsaved) if(!confirm("There are unsaved changes in your current project.\nAre you sure you want to load a different one?")) return false;
 		var file=e.originalEvent.dataTransfer.files[0];
 		if(file.name.slice(-4)!==".lgb") alert("Unsupported file type!");
 		else if(file.size>50000000) alert("File is too big!");
@@ -260,7 +307,8 @@ $(document).ready(function() {
 			var r = new FileReader();
 			r.onload = function(e) {
 				var content = e.target.result;
-				loadFile(content);
+				if(content==="" || content==null || content==false) alert("The file is empty!");
+				else loadFile(content);
 			};
 			r.readAsText(file);
 		}
@@ -350,6 +398,8 @@ $(document).ready(function() {
 			canvasY-=midY/zoom;
 			ctx.scale(zoomSpeed,zoomSpeed);
 			ctx.translate(canvasX, canvasY);
+			$("#unzoom").removeClass("disabled");
+			if(!(zoom<maxZoom)) $("#zoom").addClass("disabled");
 		}
 	};
 	
@@ -362,8 +412,38 @@ $(document).ready(function() {
 			ctx.scale(1/zoomSpeed,1/zoomSpeed);
 			ctx.translate(canvasX, canvasY);
 			zoom=zoom/zoomSpeed;
+			$("#zoom").removeClass("disabled");
+			if(!(zoom>minZoom)) $("#unzoom").addClass("disabled");
 		}
 	};
+	
+	//move UP canvas button
+	$("#move_up").on("click", function() {
+		canvasY+=64/zoom;
+		ctx.translate(0, 64/zoom);
+		redrawAll();
+	});
+	
+	//move DOWN canvas button
+	$("#move_down").on("click", function() {
+		canvasY-=64/zoom;
+		ctx.translate(0, -64/zoom);
+		redrawAll();
+	});
+	
+	//move LEFT canvas button
+	$("#move_left").on("click", function() {
+		canvasX+=64/zoom;
+		ctx.translate(64/zoom, 0);
+		redrawAll();
+	});
+	
+	//move RIGHT canvas button
+	$("#move_right").on("click", function() {
+		canvasX-=64/zoom;
+		ctx.translate(-64/zoom, 0);
+		redrawAll();
+	});
 	
 	//TOOLBAR - Debug Coordinates
 	$("#canvas").on("mousemove.debug", function(event) {
@@ -374,7 +454,6 @@ $(document).ready(function() {
 	
 	//LOAD PROJECT
 	var loadFile = function(loadProject) {
-		if(loadProject==="" || loadProject==null || loadProject==false) return false;
 		var oldNodes = nodes;
 		var oldLines = lines;
 		var oldCanvasX = canvasX;
@@ -397,6 +476,7 @@ $(document).ready(function() {
 				ctx.scale(zoom, zoom);
 				ctx.translate(canvasX, canvasY);
 			}
+			unsaved=false;
 			redrawAll();
 			return true;
 		}
@@ -429,7 +509,7 @@ $(document).ready(function() {
 		var keyID = parseInt(key.which,10);
 		var canX=(globalX/zoom)-canvasX;
 		var canY=(globalY/zoom)-canvasY;
-		if($('#canvas:hover').length != 0) var obj = getClickedNode(canX, canY);
+		if($("#canvas:hover").length != 0) var obj = getClickedNode(canX, canY);
 		else var obj=false;
 		//KEY R - align to grid
 		if(keyID===82 && state==="edit" && obj!==false) {
@@ -451,6 +531,7 @@ $(document).ready(function() {
 				nodes[obj].x1=Math.round(nodes[obj].x1/((defaultWidth+defaultLine+6)/2))*((defaultWidth+defaultLine+6)/2);
 				nodes[obj].y1=Math.round(nodes[obj].y1/((defaultWidth+defaultLine+6)/2))*((defaultWidth+defaultLine+6)/2);
 			}
+			unsaved=true;
 			redrawAll();
 		}//KEY F - quick new line
 		else if(keyID===70 && state==="edit" && !holdingClick && lineLast!==false && selected==="line" && lineStart===false) {
@@ -460,10 +541,16 @@ $(document).ready(function() {
 			else drawLine(getMiddleX(lineStart), getMiddleY(lineStart), canX, canY, defaultOutline, defaultLine);
 		}//KEY DELETE - delete object
 		else if((keyID===46 || keyID===81) && state==="edit" && !holdingClick) {
-			if(obj!==false) deleteObj(obj);
+			if(obj!==false) {
+				deleteObj(obj);
+				unsaved=true;
+			}
 			else {
 				var clickedLine = getClickedLine(canX, canY);
-				if(clickedLine!==false) lines.splice(clickedLine, 1);
+				if(clickedLine!==false) {
+					lines.splice(clickedLine, 1);
+					unsaved=true;
+				}
 			}
 			redrawAll();
 		}//KEY WASD / up,left,down,right - PAN
@@ -498,14 +585,18 @@ $(document).ready(function() {
 			redrawAll();
 		}//KEY E - Edit
 		else if(keyID===69/*LOL*/ && obj!==false  && state==="edit" && !holdingClick) {
-			if(editObj(obj)) redrawAll();
+			if(editObj(obj)) {
+				unsaved=true;
+				redrawAll();
+			}
 		}
 	});
 	
 	//MOUSE ZOOM ScrollWheel
-	$('#canvas').bind('mousewheel', function(e){
-		if((e.originalEvent.wheelDelta/120 > 0 && zoom >= maxZoom) || (!(e.originalEvent.wheelDelta/120 > 0) && zoom <= minZoom)) return;
-		event.preventDefault();
+	$("#canvas").on("mousewheel DOMMouseScroll", function(e){
+		var scrollAmount = (/Firefox/i.test(navigator.userAgent))? (e.originalEvent.detail*-1) : (e.originalEvent.wheelDelta/120);
+		if((scrollAmount > 0 && zoom >= maxZoom) || (!(scrollAmount > 0) && zoom <= minZoom)) return;
+		e.preventDefault();
 		var canX=globalX/zoom;
 		var canY=globalY/zoom;
 		panLastX = midX/zoom;
@@ -515,7 +606,7 @@ $(document).ready(function() {
 		ctx.translate(-(canX-panLastX), -(canY-panLastY));
 		canX=canX*zoom;
 		canY=canY*zoom;
-		if(e.originalEvent.wheelDelta/120 > 0) {//ZOOM+
+		if(scrollAmount > 0) {//ZOOM+
 			zoomF();
 		}
 		else{//ZOOM- / UNZOOM
@@ -604,7 +695,7 @@ $(document).ready(function() {
 		});
 	};
 	
-	/*-----------------------------CANVAS------------------------------------------------------------*/
+	/*-----------------------------CANVAS-LOGIC------------------------------------------------------*/
 	
 	//STOP Simulation
 	var stopSimulation = function() {
@@ -761,7 +852,7 @@ $(document).ready(function() {
 			case "r": return "random";
 			case "l": return "output";
 			case "w": return "text";
-			default: return "error";
+			default: return false;
 		}
 	};
 	//TYPES:   s=switch, b=button, p=pulser, q=source, o=or, a=and, n=not, d=delay, t=toggle, m=monostable, r=random, l=output(lamp), w=text
@@ -944,6 +1035,7 @@ $(document).ready(function() {
 					dragId=nodes.length-1;
 					redrawAll();
 					nodeMoveActivate();
+					unsaved=true;
 				}
 				else {//CREATE NEW OBJECT
 					switch(selected) {
@@ -996,6 +1088,7 @@ $(document).ready(function() {
 							if(text!=undefined && text!=="" && text!==" ") nodes.push({s:"r", t:"w", n:text, x1:x-(ctx.measureText(text).width/2), y1:y-(textSize/2), x2:x+(ctx.measureText(text).width/2), y2:y+(textSize/2)});
 							break;
 					}
+					unsaved=true;
 					dragId=nodes.length-1;
 					nodeMoveActivate();
 				}
@@ -1003,13 +1096,15 @@ $(document).ready(function() {
 			else if(selected==="delete") {
 				if(clickResult!==false) {//DELETE OBJECT
 					deleteObj(clickResult);
+					unsaved=true;
 				}
 				else if(clickResultLine!==false) {//DELETE LINE
 					lines.splice(clickResultLine, 1);
+					unsaved=true;
 				}
 			}//EDIT OBJECT PROPERTIES
 			else if(selected==="edit" && clickResult!==false) {
-				editObj(clickResult);
+				if(editObj(clickResult)) unsaved=true;
 			}
 			else if(selected==="line") {//LINE
 				if(lineStart===false && clickResult!==false) {//START LINE
@@ -1022,6 +1117,7 @@ $(document).ready(function() {
 				else if(lineStart!==false) {//END/CREATE LINE
 					if(!(clickResult===false || clickResult===lineStart) && ["o", "a", "n", "d", "l", "r", "t", "m"].includes(nodes[clickResult].t) && !findDuplicateLine(clickResult)) {
 						lines.push({a:lineStart, b:clickResult});
+						unsaved=true;
 					}
 					lineStart=false;
 					$("#canvas").off("mousemove.line");
@@ -1034,6 +1130,11 @@ $(document).ready(function() {
 		}
 		redrawAll();
 	};
+	
+	//Confirm Leaving the page with unsaved changes
+	window.onbeforeunload = function(){
+		if(unsaved) return "There are unsaved changes.\nAre you sure you want to leave?";
+	}
 	
 	//Remove Endora text
 	$("i").parent().parent().parent().remove();

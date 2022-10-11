@@ -222,7 +222,7 @@ hr {
 	background-color:#8AF;
 }
 
-.node:active:not(.disabled) {
+.node:active:not(.disabled), .node.activated:not(.disabled) {
 	background-color:#CCF;
 }
 
@@ -240,7 +240,7 @@ hr {
 	background-color:#AAA;
 }
 
-.button:active:not(.disabled) {
+.button:active:not(.disabled), .button.activated:not(.disabled) {
 	background-color:#777;
 }
 
