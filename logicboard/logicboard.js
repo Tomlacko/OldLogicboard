@@ -70,6 +70,16 @@ $(document).ready(function() {
 		return text[0].toUpperCase() + text.substring(1);
 	}
 	
+	function downloadProject(filename, datastring) {
+		var element = document.createElement('a');
+		element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(datastring));
+		element.setAttribute('download', filename);
+		element.style.display = 'none';
+		document.body.appendChild(element);
+		element.click();
+		document.body.removeChild(element);
+	}
+	
 	/*-----------------------------------------------------------------------------------------------*/
 	
 	var canvas = document.getElementById("canvas");
@@ -153,6 +163,43 @@ $(document).ready(function() {
 	});
 	*/
 	
+	$("#download").on("click", function() {
+		if(state!=="edit") stopSimulation();
+		filename = prompt("Enter the project's name if you want to download it:", "logicboard_project");
+		if(filename==false) return;
+		else if(filename.length>50) alert("The file name is too long!");
+		else if(filename!=="" && filename!=null) downloadProject(filename+".lgb", btoa(JSON.stringify([nodes, lines])));
+	});
+	
+	$("#save").on("click", function() {
+		if(state!=="edit") stopSimulation();
+		prompt("Copy this text:", btoa(JSON.stringify([nodes, lines])));
+	});
+	
+	$("#load").on("click", function() {
+		if(state!=="edit") stopSimulation();
+		loadProject = prompt("Enter project data:");
+		if(loadProject==="" || loadProject==null || loadProject==false) return;
+		var oldNodes = nodes;
+		var oldLines = lines;
+		try {
+			var loadArr = JSON.parse(atob(loadProject));
+			nodes=loadArr[0];
+			lines=loadArr[1];
+			ctx.setTransform(1, 0, 0, 1, 0, 0);
+			zoom = 1;
+			canvasX=nodes[0].x1+midX;
+			canvasY=nodes[0].y1+midY;
+			ctx.translate(canvasX, canvasY);
+			redrawAll();
+		}
+		catch(err) {
+			nodes=oldNodes;
+			lines=oldLines;
+			alert("Error:\n\n"+err.message);
+		}
+	});
+	
 	$("#SelectNode button").on("click", function() {
 		if(["text", "switch", "button", "source", "or", "and", "not", "delay", "line", "output", "edit", "delete", "start", "pan", "toggle", "random", "pulser", "monostable"].includes($(this).attr("id"))) {
 			selected = $(this).attr("id");
@@ -163,15 +210,7 @@ $(document).ready(function() {
 	
 	$("#StopControl button").on("click", function() {
 		if($(this).attr("id")==="stop") {
-			clearTimeout(TimeoutID);
-			state="edit";
-			$("#SelectNode").removeClass("hidden");
-			$("#StopControl").addClass("hidden");
-			$("#step").addClass("hidden");
-			$("#pause").html("Pause");
-			selected="switch";
-			resetPower();
-			redrawAll();
+			stopSimulation();
 		}
 		else if($(this).attr("id")==="pause" && state==="paused") {
 			state="running";
@@ -191,6 +230,18 @@ $(document).ready(function() {
 		}
 		else alert("Button Error");
 	});
+	
+	var stopSimulation = function() {
+		clearTimeout(TimeoutID);
+		state="edit";
+		$("#SelectNode").removeClass("hidden");
+		$("#StopControl").addClass("hidden");
+		$("#step").addClass("hidden");
+		$("#pause").html("Pause");
+		selected="switch";
+		resetPower();
+		redrawAll();
+	};
 	
 	$("#speed").on("click", function() {
 		var newSpeed = prompt("Simulation speed (Ticks per second): (Hz)", "100");
