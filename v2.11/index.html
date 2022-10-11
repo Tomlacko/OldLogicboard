@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Logic Board</title>
+		<script type="text/javascript" src="../jquery-min-1.7.js"></script>
+		<script type="text/javascript" src="../clipboard-min-1.5.8.js"></script>
+		<script type="text/javascript" src="logicboard.js"></script>
+		<link rel="stylesheet" type="text/css" href="logicboard.css"/>
+		<meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+		<!--<meta name="viewport" content="width=device-width, initial-scale=1.0" />-->
+	</head>
+	<body style="overflow:hidden;">
+		<div id="popupWrap" class="hidden">
+			<div id="popup">
+				
+				<p id="popupMsg"></p>
+				<input type="text" id="popupInput" class="hidden" value="" maxlength="100">
+				
+				<div id="popupCancel" class="pButton hidden" style="bottom:0px; left:0px;">
+					<img src="icons/close.svg" height="20px" width="20px" />
+					<p>Cancel</p>
+				</div>
+				
+				<div id="popupClose" class="pButton hidden" style="bottom:0px; left:54px;">
+					<img src="icons/close.svg" height="20px" width="20px" />
+					<p>Close</p>
+				</div>
+				
+				<div id="popupConfirm" class="pButton hidden" style="bottom:0px; right:0px;">
+					<img src="icons/confirm.svg" height="20px" width="20px" />
+					<p>Confirm</p>
+				</div>
+				
+			</div>
+		</div>
+		<div id="overlay" class="hidden">
+			<img src="icons/close.svg" id="close" title="Close" alt="Close" />
+			<div id="menu_save" class="menu hidden">
+				<h1>Download Project</h1>
+				<p style="display:inline-block; margin-right:5px;">Enter name:</p>
+				<input type="text" id="downloadName" value="new_project">
+				<br />
+				<img src="icons/download_big.png" id="downloadButton" title="Download" alt="Download File" />
+				<br />
+				<h2>...or you can save this manually:</h2>
+				<input type="button" value="Click here to copy this:" id="copyButton" style="margin-right:5px;">
+				<input type="text" id="exportSave">
+				<p class="hidden" id="copyDone">Succesfully copied!</p>
+			</div>
+			
+			<div id="menu_load" class="menu hidden">
+				<h1>Upload Project</h1>
+				<input type="file" id="inputFile" accept=".lgb" style="display:none;">
+				<label for="inputFile" id="labelFile">Choose file...</label>
+				<p style="margin-top:50px;">or paste in data manually:</p>
+				<input type="text" id="pasteImport" >
+				<input type="button" id="pasteButton" value="LOAD" style="margin-left:5px;">
+			</div>
+			
+			<div id="menu_settings" class="menu hidden">
+				<h1>Options</h1>
+				<table id="settingsTable">
+					<tr>
+						<td id="speedSetting">Ticks per second: 100</td>
+						<td><input type="button" value="Change" id="speed"></td>
+					</tr>
+					<tr>
+						<td>Track view position with UNDO</td>
+						<td><div id="undoSlider" class="slider"><div></div></div></td>
+					</tr>
+					<tr>
+						<td>Display Debug Info</td>
+						<td><div id="debugSlider" class="slider"><div></div></div></td>
+					</tr>
+					<tr>
+						<td>Show Grid</td>
+						<td><div id="gridSlider" class="slider"><div></div></div></td>
+					</tr>
+				</table>
+				<br />
+				<input type="button" id="resetPosButton" value="Reset grid position & zoom" style="margin-top:16px;">
+			</div>
+			
+			<div id="menu_info" class="menu hidden">
+				<h1>Information</h1>
+				<div id="InformationWrapper">
+					<div id="information">
+						<h2>Node description:</h2>
+						<div class="infosection">
+							<img src="nodes/line.png" alt="Connection Line" />
+							<p><strong>Connects nodes together.</strong><br />When selected, click one node, then click another one. This connect those two nodes.<br />The order in which you connect the nodes matters! The power will only flow from the first node to the last one.<br />Some nodes cannot be connected, while others don't allow you to start a connection from them.</p>
+						</div>
+						<div class="infosection">
+							<img src="nodes/switch.png" alt="Switch" />
+							<p><strong>Click to turn ON/OFF.</strong><br />When the circuit is running, click on the switch to turn it ON/OFF.<br />Can be renamed using EDIT.</p>
+						</div>
+						<div class="infosection">
+							<img src="nodes/button.png" alt="Button" />
+							<p><strong>Click to turn ON.</strong><br />When the circuit is running, click on the button to turn it ON.<br />It will turn OFF immediately after you stop holding your mouse button.<br />Can be renamed using EDIT.</p>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div id="fileOverlay" class="hidden">
+			<img src="icons/file.png" id="fileIcon" alt="Drop file here" />
+		</div>
+		<div id="panel">
+			<div id="StopControls" class="hidden">
+				<img src="icons/stop.png" id="stop" class="button" title="STOP" alt="Stop Simulation" />
+				<img src="icons/pause.png" id="pause" class="button" title="Pause / Continue" alt="Pause/Continue Simulation" />
+				<img src="icons/step.png" id="step" class="button disabled" title="Step" alt="Step" />
+			</div>
+			<div id="StartControls">
+				<img src="icons/start.png" id="start" class="button" title="START Simulation" alt="Start Simulation" />
+				<img src="icons/undo.png" id="undo" class="button disabled" title="Undo" alt="Undo" />
+				<img src="icons/redo.png" id="redo" class="button disabled" title="Redo" alt="Redo" />
+			</div>
+			<div id="MoveControls">
+				<img src="icons/left.png" id="move_left" class="button" title="Move Left" alt="Move left" />
+				<img src="icons/up.svg" id="move_up" class="button" title="Move Up" alt="Move up" />
+				<img src="icons/right.png" id="move_right" class="button" title="Move Right" alt="Move right" />
+				<img src="icons/down.svg" id="move_down" class="button" title="Move Down" alt="Move down" />
+				<img src="icons/zoom.png" id="zoom" class="button" title="Zoom+" alt="Zoom+" />
+				<img src="icons/unzoom.png" id="unzoom" class="button" title="Zoom-" alt="Zoom-" />
+			</div>
+			<div id="EditControls">
+				<img src="icons/select.png" id="select" class="button" title="Select Objects" alt="Selection" />
+				<img src="icons/edit.png" id="edit" class="button" title="Edit Object" alt="Edit" />
+				<img src="icons/delete.png" id="delete" class="button" title="Delete Object" alt="Delete" />
+				<img src="icons/replace.png" id="replace" class="button" title="Replace Object" alt="Replace" />
+			</div>
+			<div id="Options">
+				<img src="icons/save.png" id="save" class="button" title="Save Project" alt="Save" />
+				<img src="icons/load.png" id="load" class="button" title="Load Project" alt="Load" />
+				<img src="icons/new.png" id="new" class="button" title="New Project" alt="New" />
+				<img src="icons/help.png" id="info" class="button" title="Help / Information / Tutorial" alt="Info" />
+				<img src="icons/settings.svg" id="settings" class="button" title="Options" alt="settings" />
+			</div>
+		</div>
+		<div id="nodebarContainer">
+			<div id="nodebar">
+				<img src="nodes/line.png" id="line" class="node" title="Connection Line" alt="Line" />
+				<img src="nodes/switch.png" id="1" class="node selected" title="Switch" alt="Switch" />
+				<img src="nodes/button.png" id="2" class="node" title="Button" alt="Button" />
+				<img src="nodes/pulser.png" id="3" class="node" title="Pulser" alt="Pulser" />
+				<img src="nodes/or.png" id="4" class="node" title="OR Gate" alt="OR Gate" />
+				<img src="nodes/and.png" id="5" class="node" title="AND Gate" alt="AND Gate" />
+				<img src="nodes/not.png" id="6" class="node" title="NOT Gate" alt="NOT Gate" />
+				<img src="nodes/delay.png" id="7" class="node" title="Delay" alt="Delay" />
+				<img src="nodes/toggle.png" id="8" class="node" title="Toggle" alt="Toggle" />
+				<img src="nodes/monostable.png" id="9" class="node" title="Monostable" alt="Monostable" />
+				<img src="nodes/random.png" id="10" class="node" title="Randomizer" alt="Randomizer" />
+				<img src="nodes/output.png" id="12" class="node" title="Output Lamp" alt="Output" />
+				<img src="nodes/text.png" id="13" class="node" title="Text" alt="Text" />
+			</div>
+		</div>
+		<div id="canvasContainer">
+			<canvas id="canvas" width="10" height="10" style="background-color:#FFF;"></canvas>
+			<p id="debug" class="hidden"></p>
+			<div id="place">
+				<div id="place1" class="placeOpt">
+					<p>Switch Name:</p>
+					<input type="text" value="Switch" maxlength="100">
+				</div>
+				<div id="place2" class="placeOpt hidden">
+					<p>Button Name:</p>
+					<input type="text" value="Button" maxlength="100">
+				</div>
+				<div id="place3" class="placeOpt hidden">
+					<p>Delay between pulses:</p>
+					<input type="number" value="5">
+				</div>
+				<div id="place6" class="placeOpt hidden">
+					<p>Default power state:</p>
+					<br />
+					<p>Powered:</p>
+					<div class="slider activated"><div></div></div>
+				</div>
+				<div id="place7" class="placeOpt hidden">
+					<p>Delay:</p>
+					<input type="number" value="5">
+				</div>
+				<div id="place8" class="placeOpt hidden">
+					<p>Default power state:</p>
+					<br />
+					<p>Powered:</p>
+					<div class="slider"><div></div></div>
+				</div>
+				<div id="place11" class="placeOpt hidden">
+					<p>Note:</p>
+					<input type="text">
+				</div>
+				<div id="place12" class="placeOpt hidden">
+					<p>Output Name:</p>
+					<input type="text" maxlength="100">
+				</div>
+				<div id="place13" class="placeOpt hidden">
+					<p>Text:</p>
+					<input type="text" value="Text" maxlength="100">
+				</div>
+			</div>
+		</div>
+	</body>
+</html>
