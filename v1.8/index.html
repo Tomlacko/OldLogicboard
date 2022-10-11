@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Logic Board Project</title>
+		<script type="text/javascript" src="../jquery-min-1.7.js"></script>
+		<script type="text/javascript" src="logicboard.js"></script>
+		<link rel="stylesheet" type="text/css" href="logicboard.css"/>
+		<meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+	</head>
+	<body>
+		<div id="SelectNode" class="toolbar">
+			<button id="start" name="start">START</button>
+			<button id="pan" name="pan">Pan</button>
+			<button id="edit" name="edit">Edit</button>
+			<button id="delete" name="delete">Delete</button>
+			<label>--|--</label>
+			<button id="line" name="nodeLine">Connection line</button>
+			<button id="switch" name="nodeSwitch">Switch</button>
+			<button id="button" name="nodeButton">Button</button>
+			<button id="pulser" name="nodePulser">Pulser</button>
+			<button id="source" name="nodeSource">Source</button>
+			<button id="or" name="nodeOr">OR Gate</button>
+			<button id="and" name="nodeAnd">AND Gate</button>
+			<button id="not" name="nodeNot">NOT Gate</button>
+			<button id="delay" name="nodeDelay">Delay</button>
+			<button id="toggle" name="nodeToggle">Toggle</button>
+			<button id="monostable" name="nodeMonostable">Monostable</button>
+			<button id="random" name="nodeRandom">Randomizer</button>
+			<button id="output" name="nodeOutput">Output lamp</button>
+			<button id="text" name="nodeText">Text</button>
+		</div>
+		<div id="StopControl" class="toolbar hidden">
+			<button id="stop" name="stop">STOP</button>
+			<button id="pause" name="pause">Pause</button>
+			<button id="step" name="step" class="hidden">Step&gt;&gt;</button>
+		</div>
+		<p id="debug" style="display:inline-block" class="hidden"></p>
+		<div id="Options" class="toolbar">
+			<button id="zoom" name="zoom" class="hidden">Zoom+</button>
+			<button id="unzoom" name="unzoom" class="hidden">Zoom-</button>
+			<button id="download" name="download">DOWNLOAD</button>
+			<button id="save" name="save">SAVE Project</button>
+			<button id="load" name="load">LOAD Project</button>
+			<button id="speed" name="speed">Speed</button>
+		</div>
+		<canvas id="canvas" width="1600" height="900" style="display:inline-block; border:1px solid #CCC;"></canvas>
+	</body>
+</html>

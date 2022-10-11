@@ -1,0 +1,27 @@
+* {
+	margin:0px;
+	padding:0px;
+	font-family:Roboto, Sans-serif;
+}
+
+body {
+	background-color:#222;
+}
+
+.hidden {
+	display:none !important;
+}
+
+#canvas {
+	background-color:#FFF;
+}
+
+#SelectNode, #StopControl {
+	margin-left:15px;
+	margin-top:10px;
+	margin-bottom:10px;
+}
+
+#SelectNode button, #StopControl button {
+	cursor:pointer;
+}

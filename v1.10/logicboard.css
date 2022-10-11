@@ -1,0 +1,37 @@
+* {
+	margin:0px;
+	padding:0px;
+	font-family:Roboto, Sans-serif;
+}
+
+body {
+	background-color:#BBB;
+}
+
+.hidden {
+	display:none !important;
+}
+
+#canvas {
+	background-color:#FFF;
+	box-shadow:0px 0px 15px #555;
+	margin-left:10px;
+}
+
+.toolbar {
+	margin-left:10px;
+	margin-top:5px;
+	margin-bottom:5px;
+	display:inline-block;
+	background-color:#000;
+	padding:5px;
+}
+
+#Options {
+	float:right;
+	margin-right:10px;
+}
+
+.toolbar button {
+	cursor:pointer;
+}
