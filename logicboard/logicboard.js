@@ -47,11 +47,6 @@ $(document).ready(function() {
 		ctx.fill();
 	}
 	
-	var drawPixel = function(x, y, color) {
-		ctx.fillStyle=color;
-		ctx.fillRect(x, y, 1, 1);
-	};
-	
 	var drawText = function(x, y, text, color, size) {
 		ctx.fillStyle=color;
 		ctx.font = size+"px Arial";
@@ -60,7 +55,7 @@ $(document).ready(function() {
 	};
 	
 	var clear = function() {
-		ctx.clearRect(-canvasX, -canvasY, width, height);
+		ctx.clearRect(-canvasX, -canvasY, width/zoom, height/zoom);
 	};
 	
 	var degToRad = function(deg) {
@@ -83,7 +78,10 @@ $(document).ready(function() {
 	ctx.canvas.height = window.innerHeight-70;
 	var width = canvas.width;
 	var height = canvas.height;
+	var midX = width/2;
+	var midY = height/2;
 	var zoom = 1;
+	var zoomSpeed = 2;
 	
 	var fontSize = 16;
 	var textSize = 28;
@@ -140,6 +138,19 @@ $(document).ready(function() {
 	
 	/*-----------------------------------------------------------------------------------------------*/
 	
+	//debug
+	/*
+	$("#canvas").on("mousemove.debug", function(event) {
+		event.preventDefault();
+		var rect = canvas.getBoundingClientRect();
+		var canX = event.clientX - rect.left;
+		var canY = event.clientY - rect.top;
+		var canX2=canX/zoom-canvasX;
+		var canY2=canY/zoom-canvasY;
+		$("#debug").html("canX="+canX+", canY="+canY+", canX2="+canX2+", canY2="+canY2+", canvasX="+canvasX+", canvasY="+canvasY+", zoom="+zoom);
+	});
+	*/
+	
 	$("#SelectNode button").on("click", function() {
 		if(["text", "switch", "button", "source", "or", "and", "not", "delay", "line", "output", "edit", "delete", "start", "pan", "toggle", "random", "pulser", "monostable"].includes($(this).attr("id"))) {
 			selected = $(this).attr("id");
@@ -185,15 +196,71 @@ $(document).ready(function() {
 		else tickSpeed=1000/parseFloat(newSpeed);
 	});
 	
+	/*
 	$("#zoom").on("click", function() {
+		ctx.translate(-canvasX, -canvasY);
 		zoom=zoom*2;
+		canvasX-=midX/zoom;
+		canvasY-=midY/zoom;
 		ctx.scale(2,2);
+		ctx.translate(canvasX, canvasY);
+		//ctx.translate(-(midX/zoom), -(midY/zoom));
 		redrawAll();
 	});
 	
 	$("#unzoom").on("click", function() {
-		zoom=zoom/2;
+		ctx.translate(-canvasX, -canvasY);
+		canvasX+=midX/zoom;
+		canvasY+=midY/zoom;
 		ctx.scale(0.5,0.5);
+		ctx.translate(canvasX, canvasY);
+		//ctx.translate(midX/zoom, midY/zoom);
+		zoom=zoom/2;
+		redrawAll();
+	});
+	*/
+	
+	$('#canvas').bind('mousewheel', function(e){
+		event.preventDefault();
+		var rect = canvas.getBoundingClientRect();
+		var canX = event.clientX - rect.left;
+		var canY = event.clientY - rect.top;
+		canX=canX/zoom;
+		canY=canY/zoom;
+		panLastX = midX/zoom;
+		panLastY = midY/zoom;
+		canvasX=canvasX-(canX-panLastX);
+		canvasY=canvasY-(canY-panLastY);
+		ctx.translate(-(canX-panLastX), -(canY-panLastY));
+		canX=canX*zoom;
+		canY=canY*zoom;
+		
+		if(e.originalEvent.wheelDelta /120 > 0) {
+			ctx.translate(-canvasX, -canvasY);
+			zoom=zoom*zoomSpeed;
+			canvasX-=midX/zoom;
+			canvasY-=midY/zoom;
+			ctx.scale(zoomSpeed,zoomSpeed);
+			ctx.translate(canvasX, canvasY);
+			//ctx.translate(-(midX/zoom), -(midY/zoom));
+		}
+		else{
+			ctx.translate(-canvasX, -canvasY);
+			canvasX+=midX/zoom;
+			canvasY+=midY/zoom;
+			ctx.scale(1/zoomSpeed,1/zoomSpeed);
+			ctx.translate(canvasX, canvasY);
+			//ctx.translate(midX/zoom, midY/zoom);
+			zoom=zoom/zoomSpeed;
+		}
+		
+		canX=canX/zoom;
+		canY=canY/zoom;
+		panLastX = midX/zoom;
+		panLastY = midY/zoom;
+		canvasX=canvasX+(canX-panLastX);
+		canvasY=canvasY+(canY-panLastY);
+		ctx.translate(canX-panLastX, canY-panLastY);
 		redrawAll();
 	});
 	
@@ -203,6 +270,8 @@ $(document).ready(function() {
 			var rect = canvas.getBoundingClientRect();
 			var canX = event.clientX - rect.left;
 			var canY = event.clientY - rect.top;
+			canX=canX/zoom;
+			canY=canY/zoom;
 			panLastX = canX;
 			panLastY = canY;
 			canX-=canvasX;
@@ -220,6 +289,8 @@ $(document).ready(function() {
 			var rect = canvas.getBoundingClientRect();
 			var canX = event.clientX - rect.left;
 			var canY = event.clientY - rect.top;
+			canX=canX/zoom;
+			canY=canY/zoom;
 			canX-=canvasX;
 			canY-=canvasY;
 			var moveX = canX-dragLastX;
@@ -248,6 +319,8 @@ $(document).ready(function() {
 			var rect = canvas.getBoundingClientRect();
 			var canX = event.clientX - rect.left;
 			var canY = event.clientY - rect.top;
+			canX=canX/zoom;
+			canY=canY/zoom;
 			canX-=canvasX;
 			canY-=canvasY;
 			redrawAll();
@@ -262,6 +335,8 @@ $(document).ready(function() {
 			var rect = canvas.getBoundingClientRect();
 			var canX = event.clientX - rect.left;
 			var canY = event.clientY - rect.top;
+			canX=canX/zoom;
+			canY=canY/zoom;
 			canvasX=canvasX+(canX-panLastX);
 			canvasY=canvasY+(canY-panLastY);
 			ctx.translate(canX-panLastX, canY-panLastY);
@@ -385,6 +460,7 @@ $(document).ready(function() {
 			lines[j].powered = false;
 		}
 	};
+	
 	/*
 	var modifyNodeCount = function(type, oper) {
 		if(type!=="line") nodeCount++;
@@ -435,6 +511,7 @@ $(document).ready(function() {
 		}
 	};
 	*/
+	
 	var addNode = function(data) {
 		data.id=nodeCount;
 		nodes.push(data);
@@ -524,6 +601,8 @@ $(document).ready(function() {
 					break;
 			}
 		}
+		//drawRect(0, 0, 100, 100, defaultOutline, noOutline, 0); //debug 0, 0
+		//drawCircle(midX, midY, 20, defaultOutline, noOutline, 0); //debug midX, midY
 	};
 	
 	var getClickedNode = function(x, y) {
@@ -553,7 +632,10 @@ $(document).ready(function() {
 	var clickOn = function(x, y) {
 		var clickResult = getClickedNode(x, y);
 		var clickResultLine = false;
-		if(state==="edit" && selected!=="pan") {
+		if(selected==="pan" || state==="paused" || (state==="running" && (clickResult===false || (nodes[clickResult].type!=="button" && nodes[clickResult].type!=="switch")))) {
+			panActivate();
+		}
+		else if(state==="edit" && selected!=="pan") {
 			var clickResultLine = getClickedLine(x, y);
 			if(!["line", "start", "edit", "delete"].includes(selected)) {
 				if(clickResult!==false) {
@@ -671,9 +753,6 @@ $(document).ready(function() {
 		else if(state==="running" && clickResult!==false && selected!=="pan") {
 			if(nodes[clickResult].type==="button") nodes[clickResult].powered=true;
 			else if(nodes[clickResult].type==="switch") nodes[clickResult].powered=!nodes[clickResult].powered;
-		}
-		else if(selected==="pan" || state!=="edit") {
-			panActivate();
 		}
 		redrawAll();
 	};
