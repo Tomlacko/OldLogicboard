@@ -33,6 +33,18 @@ $(document).ready(function() {
 		ctx.fill();
 	};
 	
+	var drawOval = function(startX, startY, endX, endY, color, outline, line) {
+		ctx.fillStyle=color;
+		ctx.strokeStyle=outline;
+		ctx.lineWidth=line;
+		ctx.beginPath();
+		ctx.rect(startX, startY, endX-startX, endY-startY);
+		ctx.arc(startX, startY+((endY-startY)/2), defaultHeight/2, degToRad(90), degToRad(270), false);
+		ctx.arc(endX, startY+((endY-startY)/2), defaultHeight/2, degToRad(270), degToRad(90), false);
+		ctx.stroke();
+		ctx.fill();
+	}
+	
 	var drawPixel = function(x, y, color) {
 		ctx.fillStyle=color;
 		ctx.fillRect(x, y, 1, 1);
@@ -85,12 +97,12 @@ $(document).ready(function() {
 	var lineStart = false;
 	
 	var nodes = [];
-	var nNodes = {nText:0, nToggle:0, nButton:0, nSource:0, nOr:0, nAnd:0, nNot:0, nDelay:0, nOutput:0, nLine:0};
+	var nNodes = {nText:0, nSwitch:0, nButton:0, nSource:0, nOr:0, nAnd:0, nNot:0, nDelay:0, nOutput:0, nLine:0};
 	var lines = [];
 	var nodeCount = 0;
 	var lineCount = 0;
 	var tickSpeed = 10;
-	var selected = "toggle";
+	var selected = "switch";
 	var state = "edit";
 	var TimeoutID = 0;
 
@@ -110,7 +122,7 @@ $(document).ready(function() {
 	/*-----------------------------------------------------------------------------------------------*/
 	
 	$("#SelectNode button").on("click", function() {
-		if(["text", "toggle", "button", "source", "or", "and", "not", "delay", "line", "output", "edit", "delete", "start", "pan"].includes($(this).attr("id"))) {
+		if(["text", "switch", "button", "source", "or", "and", "not", "delay", "line", "output", "edit", "delete", "start", "pan"].includes($(this).attr("id"))) {
 			selected = $(this).attr("id");
 			if(selected==="start") startSimulation();
 		}
@@ -125,7 +137,7 @@ $(document).ready(function() {
 			$("#StopControl").addClass("hidden");
 			$("#step").addClass("hidden");
 			$("#pause").html("Pause");
-			selected="toggle";
+			selected="switch";
 			resetPower();
 			redrawAll();
 		}
@@ -152,6 +164,18 @@ $(document).ready(function() {
 		var newSpeed = prompt("Simulation speed (Ticks per second): (Hz)", "100");
 		if(isNaN(parseInt(newSpeed)) || parseInt(newSpeed)<=0.1 || parseInt(newSpeed)>1000) alert("Invalid number!");
 		else tickSpeed=(1/newSpeed)*1000;
+	});
+	
+	$("#zoom").on("click", function() {
+		zoom=zoom*2;
+		ctx.scale(2,2);
+		redrawAll();
+	});
+	
+	$("#unzoom").on("click", function() {
+		zoom=zoom/2;
+		ctx.scale(0.5,0.5);
+		redrawAll();
 	});
 	
 	$("#canvas").on("mousedown", function(event) {
@@ -311,8 +335,8 @@ $(document).ready(function() {
 			case "text":
 				nNodes.nText=nNodes.nText+oper;
 				break;
-			case "toggle":
-				nNodes.nToggle=nNodes.nToggle+oper;
+			case "switch":
+				nNodes.nSwitch=nNodes.nSwitch+oper;
 				break;
 			case "button":
 				nNodes.nButton=nNodes.nButton+oper;
@@ -380,12 +404,12 @@ $(document).ready(function() {
 	};
 	
 	var getMiddleX = function(node) {
-		if(nodes[node].type==="toggle" || nodes[node].type==="button" || nodes[node].type==="source" || nodes[node].type==="not") return nodes[node].x1;
+		if(nodes[node].type==="switch" || nodes[node].type==="button" || nodes[node].type==="source" || nodes[node].type==="not") return nodes[node].x1;
 		else return nodes[node].x1+((nodes[node].x2-nodes[node].x1)/2);
 	};
 	
 	var getMiddleY = function(node) {
-		if(nodes[node].type==="toggle" || nodes[node].type==="button" || nodes[node].type==="source" || nodes[node].type==="not") return nodes[node].y1;
+		if(nodes[node].type==="switch" || nodes[node].type==="button" || nodes[node].type==="source" || nodes[node].type==="not") return nodes[node].y1;
 		else return nodes[node].y1+((nodes[node].y2-nodes[node].y1)/2);
 	};
 	
@@ -416,7 +440,7 @@ $(document).ready(function() {
 				case "text":
 					drawText(nodes[i].x1, nodes[i].y1, nodes[i].name, defaultText);
 					break;
-				case "toggle":
+				case "switch":
 					drawCircle(nodes[i].x1, nodes[i].y1, nodes[i].r, powerColor(i), defaultOutline, defaultLine);
 					if(nodes[i].name!="") drawText(nodes[i].x1, nodes[i].y1, nodes[i].name, defaultName);
 					break;
@@ -441,7 +465,7 @@ $(document).ready(function() {
 					drawText(nodes[i].x1, nodes[i].y1, "NOT", defaultGate);
 					break;
 				case "delay":
-					drawRect(nodes[i].x1, nodes[i].y1, nodes[i].x2, nodes[i].y2, powerColor(i), defaultOutline, defaultLine);
+					drawOval(nodes[i].x1, nodes[i].y1, nodes[i].x2, nodes[i].y2, powerColor(i), defaultOutline, defaultLine);
 					drawText(getMiddleX(i),getMiddleY(i), nodes[i].delay, defaultGate);
 					break;
 				case "output":
@@ -455,11 +479,14 @@ $(document).ready(function() {
 	var getClickedNode = function(x, y) {
 		if(nodes.length===0) return false;
 		for(i = nodes.length-1; i>=0; i--) {
-			if(nodes[i].type==="or" || nodes[i].type==="and" || nodes[i].type==="delay" || nodes[i].type==="output") {
+			if(nodes[i].type==="or" || nodes[i].type==="and" || nodes[i].type==="output") {
 				if(x>=nodes[i].x1 && nodes[i].x2>=x && y>=nodes[i].y1 && nodes[i].y2>=y) return i;
 			}
 			else if(nodes[i].type==="text") {
 				if(x>=nodes[i].x1-(nodes[i].x2/2) && nodes[i].x1+(nodes[i].x2/2)>=x && y>=nodes[i].y1-(nodes[i].y2/2) && nodes[i].y1+(nodes[i].y2/2)>=y) return i;
+			}
+			else if(nodes[i].type==="delay") {
+				if((x>=nodes[i].x1 && nodes[i].x2>=x && y>=nodes[i].y1 && nodes[i].y2>=y) || (Math.sqrt(Math.pow(Math.abs(nodes[i].x1-x), 2)+Math.pow(Math.abs((nodes[i].y1+((nodes[i].y2-nodes[i].y1)/2))-y), 2))<=defaultHeight/2) || (Math.sqrt(Math.pow(Math.abs(nodes[i].x2-x), 2)+Math.pow(Math.abs((nodes[i].y1+((nodes[i].y2-nodes[i].y1)/2))-y), 2))<=defaultHeight/2)) return i;
 			}
 			else {
 				if(Math.sqrt(Math.pow(Math.abs(nodes[i].x1-x), 2)+Math.pow(Math.abs(nodes[i].y1-y), 2))<=nodes[i].r) return i;
@@ -492,7 +519,7 @@ $(document).ready(function() {
 				}
 				else {
 					switch(selected) {
-						case "toggle": case "button":
+						case "switch": case "button":
 							addNodeCircle(selected, false, x, y, defaultRadius, capitalize(selected));
 							break;
 						case "or": case "and":
@@ -501,7 +528,7 @@ $(document).ready(function() {
 						case "delay":
 							var delay=prompt("Set delay: (ticks)", "5");
 							if(isNaN(parseInt(delay)) || parseInt(delay)<0) alert("You have to enter a number!");
-							else addNode(selected, false, x-(defaultWidth/2), y-(defaultHeight/2), x+(defaultWidth/2), y+(defaultHeight/2), "", parseInt(delay));
+							else addNode(selected, false, x-(defaultWidth/2)+(defaultHeight/2), y-(defaultHeight/2), x+(defaultWidth/2)-(defaultHeight/2), y+(defaultHeight/2), "", parseInt(delay));
 							break;
 						case "not":
 							addNodeCircle(selected, true, x, y, defaultRadius, "");
@@ -533,7 +560,7 @@ $(document).ready(function() {
 				}
 			}
 			else if(selected==="edit" && clickResult!==false) {
-				if(nodes[clickResult].type==="delay" || nodes[clickResult].type==="button" || nodes[clickResult].type==="toggle" || nodes[clickResult].type==="text" || nodes[clickResult].type==="output" || nodes[clickResult].type==="not") {
+				if(nodes[clickResult].type==="delay" || nodes[clickResult].type==="button" || nodes[clickResult].type==="switch" || nodes[clickResult].type==="text" || nodes[clickResult].type==="output" || nodes[clickResult].type==="not") {
 					switch(nodes[clickResult].type) {
 						case "delay":
 							var delay=prompt("Set delay: (ticks)", nodes[clickResult].delay);
@@ -556,14 +583,14 @@ $(document).ready(function() {
 			}
 			else if(selected==="line") {
 				if(lineStart===false && clickResult!==false) {
-					if(nodes[clickResult].type==="toggle" || nodes[clickResult].type==="button" || nodes[clickResult].type==="not" || nodes[clickResult].type==="source" || nodes[clickResult].type==="delay" || nodes[clickResult].type==="or" || nodes[clickResult].type==="and") {
+					if(nodes[clickResult].type==="switch" || nodes[clickResult].type==="button" || nodes[clickResult].type==="not" || nodes[clickResult].type==="source" || nodes[clickResult].type==="delay" || nodes[clickResult].type==="or" || nodes[clickResult].type==="and") {
 						lineStart = clickResult;
 						lineStartActivate();
 					}
 				}
 				else if(lineStart!==false) {
 					if(clickResult===false || clickResult===lineStart) {}
-					else if(nodes[clickResult].type!=="toggle" && nodes[clickResult].type!=="button" && nodes[clickResult].type!=="source" && nodes[clickResult].type!=="text" && !findDuplicateLine(clickResult)) {
+					else if(nodes[clickResult].type!=="switch" && nodes[clickResult].type!=="button" && nodes[clickResult].type!=="source" && nodes[clickResult].type!=="text" && !findDuplicateLine(clickResult)) {
 						addLine(false, nodes[lineStart].id, nodes[clickResult].id);
 					}
 					lineStart=false;
@@ -573,8 +600,8 @@ $(document).ready(function() {
 		}
 		else if(state==="running" && clickResult!==false && selected!=="pan") {
 			if(nodes[clickResult].type==="button") nodes[clickResult].powered=true;
-			else if(nodes[clickResult].type==="toggle" && nodes[clickResult].powered===false) nodes[clickResult].powered=true;
-			else if(nodes[clickResult].type==="toggle") nodes[clickResult].powered=false;
+			else if(nodes[clickResult].type==="switch" && nodes[clickResult].powered===false) nodes[clickResult].powered=true;
+			else if(nodes[clickResult].type==="switch") nodes[clickResult].powered=false;
 		}
 		else if(selected==="pan" || state!=="edit") {
 			panActivate();
