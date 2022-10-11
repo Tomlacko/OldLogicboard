@@ -1,0 +1,65 @@
+00 READ KEYBOARD
+01 COMPARE ==
+02 (ASCII d)
+03 IF TRUE                 //move right
+04 ELSE JUMP #12           //next if
+05 	 READ
+06 	 #61                   //posX
+07 	 LOOPING BITSHIFT >
+08 	 WRITE
+09 	 #61                   //posX
+0A 	 JUMP TO
+0B 	 #57                   //redraw screen
+0C COMPARE ==
+0D (ASCII a)
+0E IF TRUE                 //move left
+0F ELSE JUMP #23           //next if
+10 	 READ
+11 	 #61                   //posX
+12 	 LOOPING BITSHIFT <
+13 	 WRITE
+14 	 #61                   //posX
+15 	 JUMP TO
+16 	 #57                   //redraw screen
+17 COMPARE ==
+18 (ASCII w)
+19 IF TRUE                 //move up
+1A ELSE JUMP #39           //next if
+1B 	 READ
+1C	 #62                   //posY
+1D 	 WRITE
+1E 	 #59                   //lastPosY
+1F 	 ADD
+20 	 255                   //-1
+21 	 BITWISE AND
+22 	 00000111              //allow only last 3 bits
+23 	 BITWISE OR
+24 	 11101000              //DRAW SCREEN ROW instruction
+25 	 WRITE
+26 	 #62                   //posY
+27 	 JUMP TO
+28 	 #57                   //redraw screen
+29 COMPARE ==
+2A (ASCII s)
+2B IF TRUE                 //move down
+2C ELSE JUMP #0            //back to beginning, next cycle
+2D 	 READ
+2E 	 #62                   //posY
+2F 	 WRITE
+30 	 #59                   //lastPosY
+31 	 ADD
+32 	 1
+33 	 BITWISE AND
+34 	 00000111              //allow only last 3 bits
+35 	 BITWISE OR
+36 	 11101000              //DRAW SCREEN ROW instruction
+37 	 WRITE
+38 	 #62                   //posY
+39 SET BUFFER              //reset screen on lastPosY position
+3A 00000000
+3B DRAW TO SCREEN ROW 4    //lastPosY
+3C SET BUFFER
+3D 00010000                //posX
+3E DRAW TO SCREEN ROW 4    //posY
+3F JUMP TO
+40 #0                      //back to beginning, next cycle

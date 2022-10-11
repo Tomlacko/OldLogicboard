@@ -1,0 +1,35 @@
+ Bin |Param| Hex |Name | Instruction                         | Action
+-----|----|------|-----|-------------------------------------|---------------------------------------------------------------------------------
+00000|000 | 0x00 | END | TERMINATE                           | 
+00001|000 | 0x01 | SVR | SCREEN INVERT PIXELS                | !Screen -> Screen
+00010|000 | 0x02 | BOF | SET BIT OFF                         | Buffer[Parameter] = 0
+00011|000 | 0x03 | INV | BOOL INVERT                         | !Bool -> Bool
+00100|000 | 0x04 | MUL | MULTIPLY                            | Buffer * Memory[next byte] -> Buffer, Overflow -> Bool
+00101|000 | 0x05 |     |                                     | 
+00110|000 | 0x06 | BIT | IS BIT ON                           | Buffer[Parameter] -> Bool
+00111|000 | 0x07 | SEE | KEYBOARD PEEK                       | Keyboard -> Buffer
+01000|000 | 0x08 | PUT | WRITE TO ADDRESS                    | Buffer -> Memory[Memory[next byte]]
+01001|000 | 0x09 | SET | SET BUFFER                          | Memory[next byte] -> Buffer)
+01010|000 | 0x0A | SH0 | BIT-SHIFT ZERO-FILL                 | Buffer <<</>>> -> Buffer, Parameter: [0--]=right, [1--]=left, [-00]=amount(1-4)
+01011|000 | 0x0B | SHL | BIT-SHIFT LOOP-AROUND               | Buffer <</>> -> Buffer, Parameter: [0--]=right, [1--]=left, [-00]=amount(1-4)
+01100|000 | 0x0C | MOD | MODULUS                             | Buffer % Memory[next byte] -> Buffer, Div/0 Error -> Bool
+01101|000 | 0x0D | RNG | RANDOM                              | Randomized byte -> Buffer
+01110|000 | 0x0E | IF  | IF BOOL TRUE CONTINUE, ELSE JUMP TO | IF Bool == 1 CONTINUE, ELSE Memory[next byte] -> Instruction pointer
+01111|000 | 0x0F | INS | GET CURRENT INSTRUCTION             | Instruction pointer -> Buffer
+10000|000 | 0x10 | GET | READ ADDRESS                        | Memory[Memory[next byte]] -> Buffer
+10001|000 | 0x11 | OR  | BIT-WISE OR                         | Buffer | Memory[next byte] -> Buffer
+10010|000 | 0x12 | BON | SET BIT ON                          | Buffer[Parameter] = 1
+10011|000 | 0x13 | RES | BOOL RESET                          | Bool = 0
+10100|000 | 0x14 | DIV | DIVIDE                              | Buffer / Memory[next byte] -> Buffer, Div/0 Error -> Bool
+10101|000 | 0x15 | XOR | BIT-WISE XOR                        | Buffer ¤ Memory[next byte] -> Buffer
+10110|000 | 0x16 | EQL | COMPARE EQUAL                       | Buffer == Memory[next byte] -> Bool
+10111|000 | 0x17 | KEY | KEYBOARD READ                       | Wait for input, Keyboard -> Buffer, Keyboard reset
+11000|000 | 0x18 | ADD | ADD                                 | Buffer + Memory[next byte] -> Buffer, Overflow -> Bool
+11001|000 | 0x19 | NOT | BIT-WISE NOT                        | !Buffer -> Buffer
+11010|000 | 0x1A | CMP | COMPARE GREATER THAN OR EQUAL       | Buffer >= Memory[next byte] -> Bool
+11011|000 | 0x1B | AND | BIT-WISE AND                        | Buffer & Memory[next byte] -> Buffer
+11100|000 | 0x1C | SUB | SUBTRACT                            | Buffer - Memory[next byte] -> Buffer, Underflow -> Bool
+11101|000 | 0x1D | SCR | SCREEN DRAW ROW                     | Buffer -> Screen[Parameter]
+11110|000 | 0x1E | JMP | JUMP TO                             | Memory[next byte] -> Instruction pointer
+11111|000 | 0x1F | SKP | SKIP                                | Instruction pointer + 1 -> Instruction pointer
+-----------------------------------------------------------------------------------------------------------------------------------------------

@@ -1,0 +1,58 @@
+READ
+#screen row (#posY)
+IS BIT ON (#posX)
+IF ON						//on ON square
+ELSE JUMP #?1
+	SET BIT OFF (#posX)
+	READ
+	#dir
+	ADD
+	3
+	JUMP TO
+	#?2
+SET BIT ON (#posX)		//?1
+READ
+#dir
+ADD
+1
+IS BIT ON (0)			//?2
+IF TRUE
+ELSE JUMP #???? +3
+	IS BIT ON (1)	//dir==left or right
+	IF TRUE
+	ELSE JUMP #???
+		????		//dir==left
+	????			//dir==right
+IS BIT ON (1)		//dir==up or down
+IF TRUE
+ELSE JUMP #????
+	????			//dir==down
+????				//dir==up
+
+
+
+
+
+
+
+
+
+ON:
+00 - 11 - go left
+01 - 00 - go up
+10 - 01 - go right
+11 - 10 - go down
+
+OFF:
+00 - 01 - go right
+01 - 10 - go down
+10 - 11 - go left
+11 - 00 - go up
+
+ON = OFF
+00 = 10
+01 = 11
+10 = 00
+11 = 01
+
+11 10 01 00

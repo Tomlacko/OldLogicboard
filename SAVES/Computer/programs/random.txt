@@ -1,0 +1,18 @@
+RANDOM BYTE					00
+DRAW TO SCREEN ROW (0)		01
+READ						02
+#01							03
+ADD							04
+1							05
+WRITE						06
+#01							07
+COMPARE EQUAL				08
+11110000					09
+IF TRUE						0A
+ELSE JUMP TO #00			0B
+	SET BUFFER				0C
+	11101000				0D
+	WRITE					0E
+	#01						0F
+	JUMP TO					10
+	#00						11
