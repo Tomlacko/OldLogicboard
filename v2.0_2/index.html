@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Logic Board Project</title>
+		<script type="text/javascript" src="../jquery-min-1.7.js"></script>
+		<script type="text/javascript" src="../clipboard-min-1.5.8.js"></script>
+		<script type="text/javascript" src="logicboard.js"></script>
+		<link rel="stylesheet" type="text/css" href="logicboard.css"/>
+		<meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+	</head>
+	<body>
+		<div id="overlay" class="hidden">
+			<img src="icons/close.png" id="close" title="EXIT" />
+			
+			<div id="popup_save" class="popup hidden">
+				<h1>Copy this text:</h1>
+				<input type="textArea" id="exportSave">
+				<p style="margin-top:8px;">or click here:</p>
+				<input type="button" value="Copy to Clipboard" id="copyButton" style="padding:2px; cursor:pointer">
+				<p class="hidden" id="copyDone">Succesfully copied!</p>
+			</div>
+			
+			<div id="popup_load" class="popup hidden">
+				<h1>Open project:</h1>
+				<input type="file" id="loadFile" accept=".lgb">
+			</div>
+			
+			<div id="popup_download" class="popup hidden">
+				<h1>Enter project name:</h1>
+				<input type="textArea" id="downloadFile">
+			</div>
+			
+			<div id="popup_settings" class="popup hidden">
+				<h1>Settings:</h1>
+				<input type="button" value="Change Tick Speed" id="speed" style="padding:2px; cursor:pointer">
+			</div>
+		</div>
+		
+		<div id="panel">
+			<div id="StopControls" class="hidden">
+				<img src="icons/stop.png" id="stop" class="button" title="STOP" />
+				<img src="icons/pause.png" id="pause" class="button" title="Pause / Continue" />
+				<img src="icons/step.png" id="step" class="button disabled" title="Step" />
+			</div>
+			<div id="StartControls">
+				<img src="icons/start.png" id="start" class="button" title="START Simulation" />
+				<img src="icons/undo.png" id="undo" class="button" title="Undo" />
+				<img src="icons/redo.png" id="redo" class="button" title="Redo" />
+			</div>
+			<div id="MoveControls">
+				<img src="icons/left.png" id="move_left" class="button" title="Move Left" />
+				<img src="icons/up.png" id="move_up" class="button" title="Move Up" />
+				<img src="icons/down.png" id="move_down" class="button" title="Move Down" />
+				<img src="icons/right.png" id="move_right" class="button" title="Move Right" />
+				<img src="icons/zoom.png" id="zoom" class="button" title="Zoom+" />
+				<img src="icons/unzoom.png" id="unzoom" class="button" title="Zoom-" />
+				<img src="icons/select.png" id="select" class="button" title="Select Objects" />
+				<img src="icons/edit.png" id="edit" class="button" title="Edit Object" />
+				<img src="icons/delete.png" id="delete" class="button" title="Delete Object" />
+				<img src="icons/replace.png" id="replace" class="button" title="Replace Object" />
+			</div>
+			<div id="Options">
+				<img src="icons/save.png" id="save" class="button" title="SAVE" />
+				<img src="icons/load.png" id="load" class="button" title="LOAD" />
+				<img src="icons/download.png" id="download" class="button" title="Download" />
+				<img src="icons/settings.png" id="settings" class="button" title="Settings" />
+			</div>
+		</div>
+		<div id="nodebar">
+			<img src="nodes/line.png" id="line" class="node" title="Connection Line" />
+			<img src="nodes/switch.png" id="switch" class="node" title="Switch" />
+			<img src="nodes/button.png" id="button" class="node" title="Button" />
+			<img src="nodes/pulser.png" id="pulser" class="node" title="Pulser" />
+			<img src="nodes/source.png" id="source" class="node" title="Source" />
+			<img src="nodes/or.png" id="or" class="node" title="OR Gate" />
+			<img src="nodes/and.png" id="and" class="node" title="AND Gate" />
+			<img src="nodes/not.png" id="not" class="node" title="NOT Gate" />
+			<img src="nodes/delay.png" id="delay" class="node" title="Delay" />
+			<img src="nodes/toggle.png" id="toggle" class="node" title="Toggle" />
+			<img src="nodes/monostable.png" id="monostable" class="node" title="Monostable" />
+			<img src="nodes/random.png" id="random" class="node" title="Randomizer" />
+			<img src="nodes/output.png" id="output" class="node" title="Output Lamp" />
+			<img src="nodes/text.png" id="text" class="node" title="Text" />
+		</div>
+		<canvas id="canvas" width="16" height="9"></canvas>
+	</body>
+</html>
