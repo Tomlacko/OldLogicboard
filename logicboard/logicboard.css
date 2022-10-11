@@ -142,22 +142,41 @@ input[type=button] {
 	float:right;
 	top:5px;
 	right:5px;
-	border:4px solid #000;
-	border-radius:10px;
-	background-color:rgba(51, 51, 51, 0.75);
+	border:2px solid #000;
+	border-radius:3px;
+	background-color:rgba(51, 51, 51, 0.9);
 	transition:background 0.2s;
 	padding:10px;
+	text-align:right;
 }
 
+/*
 #place:hover {
-	background-color:rgba(51, 51, 51, 1);
-}
+	background-color:rgba(51, 51, 51, 0.9);
+}*/
 
-#place p {
+#place p:first-child {
 	color:#8AF;
 	cursor:default;
 	font-weight:bold;
 	text-shadow:1px 1px 3px #222;
+	margin-bottom:5px;
+	text-align:left;
+}
+
+#place p:not(:first-child) {
+	color:#DDD;
+	display:inline-block;
+	margin-right:5px;
+	cursor:default;
+}
+
+.placeOpt input {
+	width:134px;
+}
+
+.placeOpt input[type=number] {
+	text-align:right;
 }
 
 #overlay {
@@ -245,12 +264,16 @@ input[type=button] {
 	padding:1px;
 }
 
-.node:hover:not(.disabled), .node.selected {
+.node:hover:not(.disabled):not(.selected) {
+	background-color:#5D78BD;
+}
+
+.node.selected {
 	background-color:#8AF;
 }
 
 .node.activated:not(.disabled) {
-	background-color:#BBF;
+	background-color:#A0BBFF !important;
 }
 
 .button {
@@ -259,12 +282,16 @@ input[type=button] {
 	border-radius:2px;
 }
 
-.button:hover:not(.disabled), .button.selected {
-	background-color:#AAA;
+.button:hover:not(.disabled):not(.selected) {
+	background-color:#BBB;
+}
+
+.button.selected {
+	background-color:#A4A4A4;
 }
 
 .button.activated:not(.disabled) {
-	background-color:#777;
+	background-color:#999 !important;
 }
 
 #downloadButton {
@@ -278,7 +305,7 @@ input[type=button] {
 }
 
 #downloadButton:hover {
-	background-color:#AAA;
+	background-color:#999;
 }
 
 #popup_info img, #popup_info p {
@@ -300,4 +327,8 @@ input[type=button] {
 	display:inline-block;
 	text-align:left;
 	width:800px;
+}
+
+#popup_settings {
+	
 }

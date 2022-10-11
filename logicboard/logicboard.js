@@ -157,6 +157,7 @@ $(document).ready(function() {
 	var zoomSpeed = 2;
 	var maxZoom = 16;
 	var minZoom = 0.03125;
+	var maxUndoSize = 100;
 	
 	var panLastX = 0;
 	var panLastY = 0;
@@ -171,6 +172,7 @@ $(document).ready(function() {
 	var realX = 0;
 	var realY = 0;
 	var dragId = 0;
+	var dragging = false;
 	var lastDelay = 5;
 	var lastPulser = 5;
 	var holdingClick = false;
@@ -181,13 +183,17 @@ $(document).ready(function() {
 	
 	var nodes = [];
 	var lines = [];
+	var undoStack = [];
+	var undoPointer = -1;
+	var undoTrackView = false;
 	var tickSpeed = 10;
 	var mouseDelay = 10;
 	var selected = 1;
+	var selectedNode = 1;
 	var state = "edit";
 	var TimeoutID = 0;
 	var ticks = 0;
-	var unsaved = false;
+	var savePointer = 0;
 	var darkMode = false;
 	var showGrid = false;
 	var gridSpacing = 42;
@@ -370,7 +376,7 @@ $(document).ready(function() {
 	];
 	
 	$(window).trigger("resize");
-	
+	addUndo();
 	
 	/*
 	TAGS:   r,x,y, *s=shape*, n=name/note, t=type, p=powered, a=startID, b=endID, d=delay, c=countdown, f=fired, q=startPowered, w=width(text)
@@ -386,22 +392,37 @@ $(document).ready(function() {
 	//prevent button dragging and highlighting
 	$(document).on("mousedown", function(e) {
 		if(e.which===1 && !$(e.target).is("input")) e.preventDefault();
+		if($(document.activeElement).parent().parent().is("#place")) $(".placeOpt:not(.hidden) input").blur();
 	});
 	
-	//:focus -> .activated
+	//click on BUTTONS/NODES - activated effect
 	$(".node, .button, #labelFile").on("mousedown", function(e) {
-		$(".node, .button").removeClass("activated");
-		$(this).addClass("activated");
+		if(e.which===1) {
+			$(".node, .button").removeClass("activated");
+			$(this).addClass("activated");
+		}
 	});
 	$(document).on("mouseup", function(e) {
 		$(".node, .button, #labelFile").removeClass("activated");
 	});
 	
 	//hide overlay
-	$("#close").on("mousedown", function() {
-		$("#information").scrollTop(0);
-		$("input").blur();
-		$(".popup, #overlay, #copyDone").addClass("hidden");
+	$("#close").on("mousedown", function(e) {
+		if(e.which===1) {
+			$("#information").scrollTop(0);
+			$("input").blur();
+			$(".popup, #overlay, #copyDone").addClass("hidden");
+		}
+	});
+	
+	//sliders
+	$(".slider").on("click", function() {
+		if($(this).hasClass("activated")) {
+			$(this).removeClass("activated");
+		}
+		else {
+			$(this).addClass("activated");
+		}
 	});
 	
 	//show settings
@@ -416,24 +437,26 @@ $(document).ready(function() {
 	
 	//new project
 	$("#new").on("click", function() {
-		if(unsaved) {
-			if(confirm("There are unsaved changes in this project.\nAre you sure you want to start a new one?")) {
-				unsaved=false;
-				nodes=[];
-				lines=[];
-				zoom=1;
-				canvasX=0;
-				canvasY=0;
-				ctx.setTransform(1, 0, 0, 1, 0, 0);
-				tickSpeed=10;
-				$("#speedSetting").html("Ticks per second: 100");
-				dragId=0;
-				lineStart=false;
-				lineLast=false;
-				unsaved=false;
-				redraw();
-			}
+		if(unsaved()) {
+			if(!confirm("There are unsaved changes in this project.\nAre you sure you want to start a new one?")) return;
 		}
+		else {
+			if(!confirm("Are you sure you want to start a new project?")) return
+		}
+		nodes=[];
+		lines=[];
+		zoom=1;
+		canvasX=0;
+		canvasY=0;
+		ctx.setTransform(1, 0, 0, 1, 0, 0);
+		tickSpeed=10;
+		$("#speedSetting").html("Ticks per second: 100");
+		dragId=0;
+		lineStart=false;
+		lineLast=false;
+		addUndo();
+		save();
+		redraw();
 	});
 	
 	//show load project
@@ -441,6 +464,7 @@ $(document).ready(function() {
 		if(state!=="edit") stopSimulation();
 		$("#overlay, #popup_load").removeClass("hidden");
 		$("#pasteImport").focus();
+		setTimeout(function() {$("#pasteImport").select();}, 1);
 	});
 	
 	//show save project
@@ -449,12 +473,15 @@ $(document).ready(function() {
 		$("#overlay, #popup_save").removeClass("hidden");
 		$("#exportSave").val(btoa(JSON.stringify([nodes, lines, [fileVersion, canvasX, canvasY, zoom, tickSpeed]])));
 		$("#downloadName").focus();
+		setTimeout(function() {$("#downloadName").select();}, 1);
 	});
 	
 	//clipboard copy
 	var clipboardProject = new Clipboard("#copyButton", {
 		text: function(trigger) {
 			$("#copyDone").removeClass("hidden");
+			setTimeout(function() {$("#exportSave").select();}, 1);
+			save();
 			return textToCopy=$("#exportSave").val();
 		}
 	});
@@ -462,12 +489,12 @@ $(document).ready(function() {
 	//DOWNLOAD PROJECT
 	$("#downloadButton").on("click", function() {
 		var filename=$("#downloadName").val();
-		if(filename==false || filename==="" || filename==null) return;
+		if(filename===false || filename==="" || filename==null) return;
 		else if(filename.length>50) alert("The file name is too long!");
 		else {
 			downloadProject(filename+".lgb", btoa(JSON.stringify([nodes, lines, [fileVersion, canvasX, canvasY, zoom, tickSpeed]])));
 			$("#overlay, #popup_save").addClass("hidden");
-			unsaved=false;
+			save();
 		}
 	});
 	
@@ -541,20 +568,22 @@ $(document).ready(function() {
 			alert("Error!\nThe file you're trying to load is not a LogicBoard file!");
 			return false;
 		}
-		var oldArr=[nodes, lines, [fileVersion, canvasX, canvasY, zoom, tickSpeed]];
+		var oldArr=[JSON.parse(JSON.stringify(nodes)), JSON.parse(JSON.stringify(lines)), [fileVersion, canvasX, canvasY, zoom, tickSpeed]];
 		try {
 			var loadArrInfo=loadArr[2];
 			if(typeof(loadArrInfo)!=="object" || loadArrInfo[0]<fileVersion) {
 				alert("This file comes from an older version and is no longer supported!");
 				return false;
 			}
-			if(unsaved) if(!confirm("There are unsaved changes in your current project.\nAre you sure you want to load a different one?")) return false;
+			if(unsaved()) if(!confirm("There are unsaved changes in your current project.\nAre you sure you want to load a different one?")) return false;
 			nodes=loadArr[0];
 			lines=loadArr[1];
 			canvasX=loadArrInfo[1];
 			canvasY=loadArrInfo[2];
 			zoom=loadArrInfo[3];
 			tickSpeed=loadArrInfo[4];
+			addUndo();
+			save();
 		}
 		catch(err) {
 			nodes=oldArr[0];
@@ -573,7 +602,6 @@ $(document).ready(function() {
 		dragId=0;
 		lineStart=false;
 		lineLast=false;
-		unsaved=false;
 		redraw();
 		return true;
 	}
@@ -593,25 +621,32 @@ $(document).ready(function() {
 	//Enable Debug Info
 	$("#debugSlider").on("click", function() {
 		if($("#debugSlider").hasClass("activated")) {
-			$("#debugSlider").removeClass("activated");
-			$("#debug").addClass("hidden");
-		}
-		else {
-			$("#debugSlider").addClass("activated");
 			updateDebug();
 			$("#debug").removeClass("hidden");
+		}
+		else {
+			$("#debug").addClass("hidden");
 		}
 	});
 	
 	//Show Grid Slider
 	$("#gridSlider").on("click", function() {
 		if($("#gridSlider").hasClass("activated")) {
-			$("#gridSlider").removeClass("activated");
-			showGrid=false;
+			showGrid=true;
 		}
 		else {
-			$("#gridSlider").addClass("activated");
-			showGrid=true;
+			showGrid=false;
+		}
+		redraw();
+	});
+	
+	//Track viewport with UNDO
+	$("#undoSlider").on("click", function() {
+		if($("#undoSlider").hasClass("activated")) {
+			undoTrackView=true;
+		}
+		else {
+			undoTrackView = false;
 		}
 		redraw();
 	});
@@ -629,9 +664,11 @@ $(document).ready(function() {
 		$(".placeOpt:not(.hidden) input").focus();
 	});
 	
+	/*
 	$("#place").on("mouseleave", function() {
 		$(".placeOpt:not(.hidden) input").blur();
 	});
+	*/
 	
 	//TOOLBAR - Select item
 	$(".node, #delete, #edit, #replace, #select").on("click", function() {
@@ -641,9 +678,28 @@ $(document).ready(function() {
 				$("#canvas").off("mousemove.line");
 				redraw();
 			}
-			if($(this).hasClass("node") && !$(this).is("#line")) selected = parseInt($(this).attr("id"));
-			else selected = $(this).attr("id");
-			$(".node, #delete, #edit, #replace, #select").removeClass("selected");
+			if($(this).hasClass("selected") && ($(this).is("#delete") || $(this).is("#edit") || $(this).is("#replace") || $(this).is("#select"))) {
+				$(this).removeClass("selected");
+				selected = selectedNode;
+				if($("#place"+selected).length===1) $("#place, #place"+selected).removeClass("hidden");
+				return;
+			}
+			if($(this).hasClass("node")) $(".node, #delete, #edit, #replace, #select").removeClass("selected");
+			else {
+				$("#delete, #edit, #replace, #select").removeClass("selected");
+				if($(this).is("#replace") && $("#place"+selected).length===1) $("#place").removeClass("hidden");
+			}
+			if($(this).hasClass("node") && !$(this).is("#line")) {
+				selected = parseInt($(this).attr("id"));
+				selectedNode = selected;
+				$(".placeOpt").addClass("hidden");
+				if($("#place"+selected).length===1) $("#place, #place"+selected).removeClass("hidden");
+				else $("#place").addClass("hidden");
+			}
+			else {
+				selected = $(this).attr("id");
+				if(!$(this).is("#replace")) $("#place").addClass("hidden");
+			}
 			$(this).addClass("selected");
 		}
 	});
@@ -789,6 +845,16 @@ $(document).ready(function() {
 		redraw();
 	});
 	
+	//BUTTON undo
+	$("#undo").on("click", function() {
+		undo();
+	});
+	
+	//BUTTON redo
+	$("#redo").on("click", function() {
+		redo();
+	});
+	
 	//TRACK global MOUSE coordinates - mousemove
 	$("#canvas").on("mousemove.global", function(event) {
 		var rect = canvas.getBoundingClientRect();
@@ -809,14 +875,19 @@ $(document).ready(function() {
 	
 	//KEYDOWN on canvas
 	$(document).on("keydown", function(key) {
-		//82=r, 17=ctrl, 70=f, 16=shift, 46=delete, 27=ESC, 32=Space, 109=-, 107=+, 69=e, 81=q
+		//82=r, 17=ctrl, 70=f, 16=shift, 46=delete, 27=ESC, 13=ENTER, 32=Space, 109=-, 107=+, 69=e, 81=q
 		//w=87 a=65 s=83 d=68  -  up=38 left=37 down=40 right=39
+		var keyID = parseInt(key.which,10);
 		if(!$("#overlay").hasClass("hidden")) {
-			if(parseInt(key.which,10)===27 && !$("#overlay").hasClass("hidden")) $("#close").trigger("mousedown");
+			if(keyID===27) $("#close").trigger("mousedown");
+			else if(keyID===13 && $(document.activeElement).is("#downloadName")) $("#downloadButton").trigger("click");
+			else if(keyID===13 && $(document.activeElement).is("#pasteImport")) $("#pasteButton").trigger("click");
 			return;
 		}
-		if($("#place:hover").length!=0) return;
-		var keyID = parseInt(key.which,10);
+		if($(document.activeElement).parent().parent().is("#place")) {
+			if(keyID===27 || keyID===13) $(".placeOpt:not(.hidden) input").blur();
+			return;
+		}
 		var canX=realX;
 		var canY=realY;
 		if($("#canvas:hover").length!=0) var obj = getClickedNode(canX, canY);
@@ -825,7 +896,7 @@ $(document).ready(function() {
 		if(keyID===82 && state==="edit" && obj!==false) {
 			nodes[obj].x=Math.round(nodes[obj].x/gridSpacing)*gridSpacing;
 			nodes[obj].y=Math.round(nodes[obj].y/gridSpacing)*gridSpacing;
-			unsaved=true;
+			addUndo();
 			redraw();
 		}//KEY F - quick new line
 		else if(keyID===70 && state==="edit" && !holdingClick && lineLast!==false && selected==="line" && lineStart===false) {
@@ -836,13 +907,12 @@ $(document).ready(function() {
 		else if((keyID===46 || keyID===81) && state==="edit" && !holdingClick && lineStart===false) {
 			if(obj!==false) {
 				deleteObj(obj);
-				unsaved=true;
 			}
 			else {
 				var clickedLine = getClickedLine(canX, canY);
 				if(clickedLine!==false) {
 					lines.splice(clickedLine, 1);
-					unsaved=true;
+					addUndo();
 				}
 			}
 			redraw();
@@ -886,7 +956,7 @@ $(document).ready(function() {
 		else if(keyID===69/*LOL*/ && state==="edit" && !holdingClick) {
 			if(obj!==false) {
 				if(editObj(obj, false)) {
-					unsaved=true;
+					addUndo();
 					redraw();
 				}
 			}
@@ -894,7 +964,7 @@ $(document).ready(function() {
 				var clickedLine = getClickedLine(canX, canY);
 				if(clickedLine!==false) {
 					if(editObj(false, clickedLine)) {
-						unsaved=true;
+						addUndo();
 						redraw();
 					}
 				}
@@ -1008,7 +1078,11 @@ $(document).ready(function() {
 	//MOUSE disable hold - mouseup
 	$(document).on("mouseup", function(e) {
 		if(e.which===1) {
-			$("#canvas").off("mousemove.drag");
+			if(dragging) {
+				$("#canvas").off("mousemove.drag");
+				dragging = false;
+				addUndo();
+			}
 			$("#canvas").off("mousemove.pan");
 			$("#place").find("*").add("#place").css("pointer-events", "auto");
 			holdingClick = false;
@@ -1041,6 +1115,12 @@ $(document).ready(function() {
 	}
 	
 	/*-----------------------------CANVAS-LOGIC------------------------------------------------------*/
+	
+	//check if SAVED
+	function unsaved() {
+		if(savePointer===undoPointer) return false;
+		return true;
+	}
 	
 	//STOP Simulation
 	function stopSimulation() {
@@ -1227,6 +1307,65 @@ $(document).ready(function() {
 		return design[nodes[id].t].radius;
 	}
 	
+	//ADD UNDO Stack
+	function addUndo() {
+		if(undoPointer!==undoStack.length-1) {
+			undoStack.splice(undoPointer+1, undoStack.length-undoPointer-1);
+			if(savePointer>undoStack.length-1) savePointer = -1;
+		}
+		undoStack.push([JSON.parse(JSON.stringify(nodes)), JSON.parse(JSON.stringify(lines)), canvasX, canvasY, zoom, tickSpeed]);
+		if(undoStack.length>1) $("#undo").removeClass("disabled");
+		if(undoStack.length>maxUndoSize) {
+			undoStack.shift();
+			if(savePointer>-1) savePointer--;
+		}
+		undoPointer = undoStack.length-1;
+		$("#redo").addClass("disabled");
+	}
+	
+	//UNDO
+	function undo() {
+		if(state!=="edit" || undoStack.length<2 || undoPointer===0) return;
+		undoPointer-=1;
+		if(undoPointer===0) $("#undo").addClass("disabled");
+		$("#redo").removeClass("disabled");
+		loadUndoPos();
+	}
+	
+	//REDO
+	function redo() {
+		if(state!=="edit" || undoStack.length<2 || undoPointer===undoStack.length-1) return;
+		undoPointer+=1;
+		if(undoPointer===undoStack.length-1) $("#redo").addClass("disabled");
+		$("#undo").removeClass("disabled");
+		loadUndoPos();
+	}
+	
+	//LOAD from undo stack
+	function loadUndoPos() {
+		nodes = JSON.parse(JSON.stringify(undoStack[undoPointer][0]));
+		lines = JSON.parse(JSON.stringify(undoStack[undoPointer][1]));
+		if(undoTrackView) {
+			canvasX = undoStack[undoPointer][2];
+			canvasY = undoStack[undoPointer][3];
+			zoom = undoStack[undoPointer][4];
+			ctx.setTransform(1, 0, 0, 1, 0, 0);
+			ctx.scale(zoom, zoom);
+			ctx.translate(canvasX, canvasY);
+		}
+		tickSpeed = undoStack[undoPointer][5];
+		$("#speedSetting").html("Ticks per second: "+Math.round(1000/tickSpeed));
+		dragId=0;
+		lineStart=false;
+		lineLast=false;
+		redraw();
+	}
+	
+	//SAVE - move pointer
+	function save() {
+		savePointer=undoStack.length-1;
+	}
+	
 	//Find duplicate line - prevent creating multiple identical lines
 	function findDuplicateLine(id) {
 		for(j=0; j<lines.length; j++) {
@@ -1264,6 +1403,7 @@ $(document).ready(function() {
 			reorganize(id);
 		}
 		else nodes.splice(id, 1);
+		addUndo();
 	}
 	
 	//EDIT object
@@ -1323,9 +1463,9 @@ $(document).ready(function() {
 			reorganize(id);
 		}
 		dragId=nodes.length-1;
+		dragging = true;
 		redraw();
 		nodeMoveActivate();
-		unsaved=true;
 	}
 	
 	//Draw grid
@@ -1378,6 +1518,7 @@ $(document).ready(function() {
 		updateDebug();
 	}
 	
+	//UPDATE DEBUG INFO
 	function updateDebug() {
 		$("#debug").html("mouseX="+globalX+", mouseY="+globalY+"<br/>gridX="+realX+", gridY="+realY+"<br/>moveX="+canvasX+", moveY="+canvasY+"<br/>nodes: "+nodes.length+", lines: "+lines.length+", zoom: "+zoom+"<br/>TPS: "+Math.round(1000/tickSpeed)+", ticks: "+ticks);
 	}
@@ -1432,7 +1573,7 @@ $(document).ready(function() {
 				else if(lineStart!==false) {//END/CREATE LINE
 					if(!(clickResult===false || clickResult===lineStart) && design[nodes[clickResult].t].canEndLine && !findDuplicateLine(clickResult)) {
 						lines.push({a:lineStart, b:clickResult});
-						unsaved=true;
+						addUndo();
 					}
 					lineStart=false;
 					$("#canvas").off("mousemove.line");
@@ -1502,26 +1643,25 @@ $(document).ready(function() {
 							}
 							break;
 					}
-					unsaved=true;
+					addUndo();
 				}
 			}
 			else if(selected==="delete") {
 				if(clickResult!==false) {//DELETE OBJECT
 					deleteObj(clickResult);
-					unsaved=true;
 				}
 				else if(clickResultLine!==false) {//DELETE LINE
 					lines.splice(clickResultLine, 1);
-					unsaved=true;
+					addUndo();
 				}
 			}//EDIT OBJECT PROPERTIES
 			else if(selected==="edit" && (clickResult!==false || clickResultLine!==false)) {
-				if(editObj(clickResult, clickResultLine)) unsaved=true;
+				if(editObj(clickResult, clickResultLine)) addUndo();
 			}//REPLACE OBJECT
 			else if((selected==="replace" || selected==="select") && clickResult!==false) {
 				alert("Not yet implemented!");
 				//var oldObj=nodes[clickResult];
-				//unsaved=true;
+				//addUndo();
 			}
 		}//CLICK BUTTON / SWITCH while running
 		else if(state==="running" && clickResult!==false) {
@@ -1533,7 +1673,7 @@ $(document).ready(function() {
 	
 	//Confirm Leaving the page with unsaved changes
 	window.onbeforeunload = function(){
-		if(unsaved) return "There are unsaved changes.\nAre you sure you want to leave?";
+		if(unsaved()) return "There are unsaved changes.\nAre you sure you want to leave?";
 	}
 	
 	//Remove Endora text

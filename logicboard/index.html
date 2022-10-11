@@ -14,7 +14,7 @@
 			<img src="icons/close.png" id="close" title="Close" alt="Close" />
 			
 			<div id="popup_save" class="popup hidden">
-				<h1>Download project:</h1>
+				<h1>Download Project</h1>
 				<p style="display:inline-block; margin-right:5px;">Enter name:</p>
 				<input type="text" id="downloadName" value="new_project">
 				<br />
@@ -27,7 +27,7 @@
 			</div>
 			
 			<div id="popup_load" class="popup hidden">
-				<h1>Open project:</h1>
+				<h1>Upload Project</h1>
 				<input type="file" id="inputFile" accept=".lgb" style="display:none;">
 				<label for="inputFile" id="labelFile">Choose file...</label>
 				<p style="margin-top:50px;">or paste in data manually:</p>
@@ -36,9 +36,12 @@
 			</div>
 			
 			<div id="popup_settings" class="popup hidden">
-				<h1>Options:</h1>
+				<h1>Options</h1>
 				<p id="speedSetting" style="display:inline-block;">Ticks per second: 100</p>
 				<input type="button" value="Change" id="speed" style="margin-left:8px;">
+				<br />
+				<p style="display:inline-block; margin-top:8px;">Track view position with UNDO</p>
+				<div id="undoSlider" class="slider"><div></div></div>
 				<br />
 				<p style="display:inline-block; margin-top:8px;">Show Advanced Info</p>
 				<div id="debugSlider" class="slider"><div></div></div>
@@ -50,7 +53,7 @@
 			</div>
 			
 			<div id="popup_info" class="popup hidden">
-				<h1>Information:</h1>
+				<h1>Information</h1>
 				<div id="InformationWrapper">
 					<div id="information">
 						<h2>Node description:</h2>
@@ -81,8 +84,8 @@
 			</div>
 			<div id="StartControls">
 				<img src="icons/start.png" id="start" class="button" title="START Simulation" alt="Start Simulation" />
-				<img src="icons/undo.png" id="undo" class="button" title="Undo" alt="Undo" />
-				<img src="icons/redo.png" id="redo" class="button" title="Redo" alt="Redo" />
+				<img src="icons/undo.png" id="undo" class="button disabled" title="Undo" alt="Undo" />
+				<img src="icons/redo.png" id="redo" class="button disabled" title="Redo" alt="Redo" />
 			</div>
 			<div id="MoveControls">
 				<img src="icons/left.png" id="move_left" class="button" title="Move Left" alt="Move left" />
@@ -103,7 +106,7 @@
 				<img src="icons/load.png" id="load" class="button" title="Load Project" alt="Load" />
 				<img src="icons/new.png" id="new" class="button" title="New Project" alt="New" />
 				<img src="icons/help.png" id="info" class="button" title="Help / Information / Tutorial" alt="Info" />
-				<img src="icons/settings.png" id="settings" class="button" title="Options" alt="settings" />
+				<img src="icons/settings.svg" id="settings" class="button" title="Options" alt="settings" />
 			</div>
 		</div>
 		<div id="nodebar">
@@ -135,22 +138,22 @@
 				</div>
 				<div id="place3" class="placeOpt hidden">
 					<p>Delay between pulses:</p>
-					<input type="text" value="5">
+					<input type="number" value="5">
 				</div>
 				<div id="place6" class="placeOpt hidden">
 					<p>Default power state:</p>
 					<br />
-					<p>Powered</p>
+					<p>Powered:</p>
 					<div class="slider activated"><div></div></div>
 				</div>
 				<div id="place7" class="placeOpt hidden">
 					<p>Delay:</p>
-					<input type="text" value="5">
+					<input type="number" value="5">
 				</div>
 				<div id="place8" class="placeOpt hidden">
 					<p>Default power state:</p>
 					<br />
-					<p>Powered</p>
+					<p>Powered:</p>
 					<div class="slider"><div></div></div>
 				</div>
 				<div id="place11" class="placeOpt hidden">
