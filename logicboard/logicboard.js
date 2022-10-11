@@ -82,6 +82,8 @@ $(document).ready(function() {
 	var midY = height/2;
 	var zoom = 1;
 	var zoomSpeed = 2;
+	var maxZoom = 16;
+	var minZoom = 0.03125;
 	
 	var fontSize = 16;
 	var textSize = 28;
@@ -98,9 +100,9 @@ $(document).ready(function() {
 	var holdingClick = false;
 	var lineStart = false;
 	
-	//LINE PARAMETERS: id, startID, endID
+	//LINE PARAMETERS: startID, endID
 	
-	//NODE PARAMETERS: shape, type, id, powered, startPowered, delay, countdown, x1, y1, (x2, y2)/(r), name
+	//NODE PARAMETERS: shape, type, powered, startPowered, delay, countdown, x1, y1, (x2, y2)/(r), name
 	
 	//TOGGLE: startPowered, fired
 	//NOT: startPowered
@@ -112,7 +114,7 @@ $(document).ready(function() {
 	var nodes = [];
 	var nNodes = {nText:0, nSwitch:0, nButton:0, nSource:0, nOr:0, nAnd:0, nNot:0, nDelay:0, nOutput:0, nLine:0};
 	var lines = [];
-	var nodeCount = 0;
+	//var nodeCount = 0;
 	//var lineCount = 0;
 	var tickSpeed = 10;
 	var selected = "switch";
@@ -221,6 +223,7 @@ $(document).ready(function() {
 	*/
 	
 	$('#canvas').bind('mousewheel', function(e){
+		if((e.originalEvent.wheelDelta/120 > 0 && zoom >= maxZoom) || (!(e.originalEvent.wheelDelta/120 > 0) && zoom <= minZoom)) return;
 		event.preventDefault();
 		var rect = canvas.getBoundingClientRect();
 		var canX = event.clientX - rect.left;
@@ -235,7 +238,7 @@ $(document).ready(function() {
 		canX=canX*zoom;
 		canY=canY*zoom;
 		
-		if(e.originalEvent.wheelDelta /120 > 0) {
+		if(e.originalEvent.wheelDelta/120 > 0) {
 			ctx.translate(-canvasX, -canvasY);
 			zoom=zoom*zoomSpeed;
 			canvasX-=midX/zoom;
@@ -356,7 +359,7 @@ $(document).ready(function() {
 	var Tick = function() {
 		TimeoutID = setTimeout(Tick, tickSpeed);
 		for(i=0; i<lines.length; i++) {
-			lines[i].powered = nodes[getRealID(lines[i].startID)].powered;
+			lines[i].powered = nodes[lines[i].startID].powered;
 		}
 		for(i=0; i<nodes.length; i++) {
 			switch(nodes[i].type) {
@@ -426,8 +429,8 @@ $(document).ready(function() {
 	var testAnd = function(id) {
 		var result = false;
 		for(j=0; j<lines.length; j++) {
-			if(lines[j].endID===nodes[id].id && lines[j].powered) result = true;
-			if(lines[j].endID===nodes[id].id && !lines[j].powered) {
+			if(lines[j].endID===id && lines[j].powered) result = true;
+			if(lines[j].endID===id && !lines[j].powered) {
 				result = false;
 				break;
 			}
@@ -437,14 +440,14 @@ $(document).ready(function() {
 	
 	var testOr = function(id) {
 		for(j=0; j<lines.length; j++) {
-			if(lines[j].endID===nodes[id].id && lines[j].powered) return true;
+			if(lines[j].endID===id && lines[j].powered) return true;
 		}
 		return false;
 	}
 	
 	var testNot = function(id) {
 		for(j=0; j<lines.length; j++) {
-			if(lines[j].endID===nodes[id].id && lines[j].powered) return false;
+			if(lines[j].endID===id && lines[j].powered) return false;
 		}
 		return true;
 	}
@@ -459,69 +462,6 @@ $(document).ready(function() {
 		for(j=0; j<lines.length; j++) {
 			lines[j].powered = false;
 		}
-	};
-	
-	/*
-	var modifyNodeCount = function(type, oper) {
-		if(type!=="line") nodeCount++;
-		switch(type) {
-			case "text":
-				nNodes.nText+=oper;
-				break;
-			case "switch":
-				nNodes.nSwitch+=oper;
-				break;
-			case "button":
-				nNodes.nButton+=oper;
-				break;
-			case "source":
-				nNodes.nSource+=oper;
-				break;
-			case "pulser":
-				nNodes.nPulser+=oper;
-				break;
-			case "random":
-				nNodes.nRandom+=oper;
-				break;
-			case "or":
-				nNodes.nOr+=oper;
-				break;
-			case "and":
-				nNodes.nAnd+=oper;
-				break;
-			case "not":
-				nNodes.nNot+=oper;
-				break;
-			case "delay":
-				nNodes.nDelay+=oper;
-				break;
-			case "monostable":
-				nNodes.nMonostable+=oper;
-				break;
-			case "toggle":
-				nNodes.nToggle+=oper;
-				break;
-			case "output":
-				nNodes.nOutput+=oper;
-				break;
-			case "line":
-				nNodes.nLine+=oper;
-				//lineCount++;
-				break;
-		}
-	};
-	*/
-	
-	var addNode = function(data) {
-		data.id=nodeCount;
-		nodes.push(data);
-		nodeCount++;
-		//modifyNodeCount(data.type, 1);
-	};
-	
-	var addLine = function(startID, endID) {
-		lines.push({powered:false, startID:startID, endID:endID});
-		//modifyNodeCount("line", 1);
 	};
 	
 	var powerColor = function(node) {
@@ -544,27 +484,31 @@ $(document).ready(function() {
 		else return nodes[node].y1+((nodes[node].y2-nodes[node].y1)/2);
 	};
 	
-	var getRealID = function(id) {
-		if(id<nodes.length) {
-			if(nodes[id].id===id) return id;
-		}
-		for(k=0; k<nodes.length; k++) {
-			if(nodes[k].id===id) return k;
+	var findDuplicateLine = function(id) {
+		for(j=0; j<lines.length; j++) {
+			if(lines[j].startID===lineStart && lines[j].endID===id) return true;
 		}
 		return false;
 	};
 	
-	var findDuplicateLine = function(id) {
+	var reorganize = function(pos) {
+		var uptop = [];
 		for(j=0; j<lines.length; j++) {
-			if(lines[j].startID===nodes[lineStart].id && lines[j].endID===nodes[id].id) return true;
+			if(lines[j].startID===pos) uptop.push([j, 1]);
+			if(lines[j].endID===pos) uptop.push([j, 2]);
+			if(lines[j].startID>pos) lines[j].startID--;
+			if(lines[j].endID>pos) lines[j].endID--;
 		}
-		return false;
+		for(j=0; j<uptop.length; j++) {
+			if(uptop[j][1]===1) lines[uptop[j][0]].startID=nodes.length-1;
+			if(uptop[j][1]===2) lines[uptop[j][0]].endID=nodes.length-1;
+		}
 	};
 	
 	var redrawAll = function() {
 		clear();
 		for(i=0; i<lines.length; i++) {
-			drawLine(getMiddleX(getRealID(lines[i].startID)), getMiddleY(getRealID(lines[i].startID)), getMiddleX(getRealID(lines[i].endID)), getMiddleY(getRealID(lines[i].endID)), powerColorLine(i), defaultLine);
+			drawLine(getMiddleX(lines[i].startID), getMiddleY(lines[i].startID), getMiddleX(lines[i].endID), getMiddleY(lines[i].endID), powerColorLine(i), defaultLine);
 		}
 		for(i=0; i<nodes.length; i++) {
 			switch(nodes[i].type) {
@@ -624,7 +568,7 @@ $(document).ready(function() {
 	var getClickedLine = function(x, y) {
 		if(lines.length===0) return false;
 		for(i = lines.length-1; i>=0; i--) {
-			if((Math.sqrt(Math.pow(Math.abs(getMiddleX(getRealID(lines[i].startID))-x), 2)+Math.pow(Math.abs(getMiddleY(getRealID(lines[i].startID))-y), 2))+Math.sqrt(Math.pow(Math.abs(getMiddleX(getRealID(lines[i].endID))-x), 2)+Math.pow(Math.abs(getMiddleY(getRealID(lines[i].endID))-y), 2)))<(Math.sqrt(Math.pow(Math.abs(getMiddleX(getRealID(lines[i].startID))-getMiddleX(getRealID(lines[i].endID))), 2)+Math.pow(Math.abs(getMiddleY(getRealID(lines[i].startID))-getMiddleY(getRealID(lines[i].endID))), 2))+0.08)) return i;
+			if((Math.sqrt(Math.pow(Math.abs(getMiddleX(lines[i].startID)-x), 2)+Math.pow(Math.abs(getMiddleY(lines[i].startID)-y), 2))+Math.sqrt(Math.pow(Math.abs(getMiddleX(lines[i].endID)-x), 2)+Math.pow(Math.abs(getMiddleY(lines[i].endID)-y), 2)))<(Math.sqrt(Math.pow(Math.abs(getMiddleX(lines[i].startID)-getMiddleX(lines[i].endID)), 2)+Math.pow(Math.abs(getMiddleY(lines[i].startID)-getMiddleY(lines[i].endID)), 2))+0.08)) return i;
 		}
 		return false;
 	};
@@ -639,9 +583,12 @@ $(document).ready(function() {
 			var clickResultLine = getClickedLine(x, y);
 			if(!["line", "start", "edit", "delete"].includes(selected)) {
 				if(clickResult!==false) {
-					var obj = nodes[clickResult];
-					nodes.splice(clickResult, 1);
-					nodes.push(obj);
+					if(clickResult<nodes.length-1) {
+						var obj = nodes[clickResult];
+						nodes.splice(clickResult, 1);
+						nodes.push(obj);
+						reorganize(clickResult);
+					}
 					dragId=nodes.length-1;
 					redrawAll();
 					nodeMoveActivate();
@@ -649,63 +596,65 @@ $(document).ready(function() {
 				else {
 					switch(selected) {
 						case "switch": case "button":
-							addNode({shape:"circle", type:selected, name:capitalize(selected), r:defaultRadius, powered:false, x1:x, y1:y});
+							nodes.push({shape:"circle", type:selected, name:capitalize(selected), r:defaultRadius, powered:false, x1:x, y1:y});
 							break;
 						case "or": case "and":
-							addNode({shape:"rect", type:selected, powered:false, x1:x-(defaultWidth/2)+10, y1:y-(defaultHeight/2), x2:x+(defaultWidth/2)-10, y2:y+(defaultHeight/2)});
+							nodes.push({shape:"rect", type:selected, powered:false, x1:x-(defaultWidth/2)+10, y1:y-(defaultHeight/2), x2:x+(defaultWidth/2)-10, y2:y+(defaultHeight/2)});
 							break;
 						case "delay":
 							var delay=prompt("Set delay: (ticks)", lastDelay);
 							if(isNaN(parseInt(delay)) || parseInt(delay)<1) alert("Invalid number!");
 							else {
-								addNode({shape:"oval", type:"delay", powered:false, delay:Math.round(parseFloat(delay)), countdown:Math.round(parseFloat(delay)), x1:x-(defaultWidth/2), y1:y-(defaultHeight/2), x2:x+(defaultWidth/2), y2:y+(defaultHeight/2)});
+								nodes.push({shape:"oval", type:"delay", powered:false, delay:Math.round(parseFloat(delay)), countdown:Math.round(parseFloat(delay)), x1:x-(defaultWidth/2), y1:y-(defaultHeight/2), x2:x+(defaultWidth/2), y2:y+(defaultHeight/2)});
 								lastDelay = Math.round(parseFloat(delay));
 							}
 							break;
 						case "not":
-							addNode({shape:"circle", type:"not", r:defaultRadius, powered:true, startPowered:true, x1:x, y1:y});
+							nodes.push({shape:"circle", type:"not", r:defaultRadius, powered:true, startPowered:true, x1:x, y1:y});
 							break;
 						case "output":
-							addNode({shape:"rect", type:"output", powered:false, name:"", x1:(Math.round(x/defaultHeight)*defaultHeight)-(defaultHeight/2), y1:(Math.round(y/defaultHeight)*defaultHeight)-(defaultHeight/2), x2:(Math.round(x/defaultHeight)*defaultHeight)+(defaultHeight/2), y2:(Math.round(y/defaultHeight)*defaultHeight)+(defaultHeight/2)});
+							nodes.push({shape:"rect", type:"output", powered:false, name:"", x1:(Math.round(x/defaultHeight)*defaultHeight)-(defaultHeight/2), y1:(Math.round(y/defaultHeight)*defaultHeight)-(defaultHeight/2), x2:(Math.round(x/defaultHeight)*defaultHeight)+(defaultHeight/2), y2:(Math.round(y/defaultHeight)*defaultHeight)+(defaultHeight/2)});
 							break;
 						case "source":
-							addNode({shape:"circle", type:"source", r:defaultRadius, powered:true, x1:x, y1:y});
+							nodes.push({shape:"circle", type:"source", r:defaultRadius, powered:true, x1:x, y1:y});
 							break;
 						case "pulser":
 							var delay=prompt("Set delay: (ticks)", lastPulser);
 							if(isNaN(parseInt(delay)) || parseInt(delay)<1) alert("Invalid number!");
 							else {
-								addNode({shape:"circle", type:"pulser", r:defaultRadius, powered:false, x1:x, y1:y, delay:Math.round(parseFloat(delay)), countdown:Math.round(parseFloat(delay))});
+								nodes.push({shape:"circle", type:"pulser", r:defaultRadius, powered:false, x1:x, y1:y, delay:Math.round(parseFloat(delay)), countdown:Math.round(parseFloat(delay))});
 								lastPulser = Math.round(parseFloat(delay));
 							}
 							break;
 						case "random":
-							addNode({shape:"circle", type:"random", r:defaultRadius+10, powered:false, x1:x, y1:y, fired:false});
+							nodes.push({shape:"circle", type:"random", r:defaultRadius+10, powered:false, x1:x, y1:y, fired:false});
 							break;
 						case "toggle":
-							addNode({shape:"rect", type:"toggle", powered:false, startPowered:false, fired:false, x1:x-(defaultWidth/2), y1:y-(defaultWidth/2), x2:x+(defaultWidth/2), y2:y+(defaultWidth/2)});
+							nodes.push({shape:"rect", type:"toggle", powered:false, startPowered:false, fired:false, x1:x-(defaultWidth/2), y1:y-(defaultWidth/2), x2:x+(defaultWidth/2), y2:y+(defaultWidth/2)});
 							break;
 						case "monostable":
-							addNode({shape:"rect", type:"monostable", powered:false, fired:false, x1:x-(defaultWidth/2)-16, y1:y-(defaultHeight/2), x2:x+(defaultWidth/2)+16, y2:y+(defaultHeight/2)});
+							nodes.push({shape:"rect", type:"monostable", powered:false, fired:false, x1:x-(defaultWidth/2)-16, y1:y-(defaultHeight/2), x2:x+(defaultWidth/2)+16, y2:y+(defaultHeight/2)});
 							break;
 						case "text":
 							var text = prompt("Enter text:");
 							ctx.font = textSize+"px Arial";
-							if(text!=undefined && text!=="" && text!==" ") addNode({shape:"rect", type:"text", name:text, x1:x-(ctx.measureText(text).width/2), y1:y-(textSize/2), x2:x+(ctx.measureText(text).width/2), y2:y+(textSize/2)});
+							if(text!=undefined && text!=="" && text!==" ") nodes.push({shape:"rect", type:"text", name:text, x1:x-(ctx.measureText(text).width/2), y1:y-(textSize/2), x2:x+(ctx.measureText(text).width/2), y2:y+(textSize/2)});
 							break;
 					}
 				}
 			}
 			else if(selected==="delete") {
 				if(clickResult!==false) {
-					//modifyNodeCount(nodes[clickResult].type, -1);
 					for(j = lines.length-1; j>=0; j--) {
-						if(lines[j].startID===nodes[clickResult].id || lines[j].endID===nodes[clickResult].id) lines.splice(j, 1);
+						if(lines[j].startID===clickResult || lines[j].endID===clickResult) lines.splice(j, 1);
 					}
-					nodes.splice(clickResult, 1);
+					if(clickResult<nodes.length-1) {
+						nodes.splice(clickResult, 1);
+						reorganize(clickResult);
+					}
+					else nodes.splice(clickResult, 1);
 				}
 				else if(clickResultLine!==false) {
-					//modifyNodeCount("line", -1);
 					lines.splice(clickResultLine, 1);
 				}
 			}
@@ -743,7 +692,7 @@ $(document).ready(function() {
 				}
 				else if(lineStart!==false) {
 					if(!(clickResult===false || clickResult===lineStart) && ["or", "and", "not", "delay", "output", "random", "toggle", "monostable"].includes(nodes[clickResult].type) && !findDuplicateLine(clickResult)) {
-						addLine(nodes[lineStart].id, nodes[clickResult].id);
+						lines.push({startID:lineStart, endID:clickResult});
 					}
 					lineStart=false;
 					$("#canvas").off("mousemove.line");
