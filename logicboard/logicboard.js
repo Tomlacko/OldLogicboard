@@ -194,7 +194,7 @@ $(document).ready(function() {
 			nodes=loadArr[0];
 			lines=loadArr[1];
 			ctx.setTransform(1, 0, 0, 1, 0, 0);
-			if(!loadArr.length>2) {
+			if(!(loadArr.length>2)) {
 				canvasX=0;
 				canvasY=0;
 				zoom=1;
@@ -283,42 +283,91 @@ $(document).ready(function() {
 	
 	//KEYDOWN on canvas
 	$(document).on("keydown", function(key) {
-		//82=r, 17=ctrl
+		//82=r, 17=ctrl, 70=f, 16=shift, 46=delete, 109=-, 107=+, 69=e, 81=q
+		//w=87 a=65 s=83 d=68  -  up=38 left=37 down=40 right=39
 		var keyID = parseInt(key.which,10);
 		var canX=(globalX/zoom)-canvasX;
 		var canY=(globalY/zoom)-canvasY;
-		if($('#canvas:hover').length != 0) var obj = getClickedNode(canX, canY);
+		if($('#canvas:hover').length!=0) var obj = getClickedNode(canX, canY);
 		else var obj=false;
-		
 		//KEY R - align to grid
-		if(keyID===82 && state==="edit") {
-			if(obj!==false) {
-				if(nodes[obj].shape!=="circle") {
-					var centerX=getMiddleX(obj);
-					var centerY=getMiddleY(obj);
-					var w=nodes[obj].x2-nodes[obj].x1;
-					var h=nodes[obj].y2-nodes[obj].y1;
-					var l=0;
-					if(nodes[obj].type!=="output") l=defaultLine+4;
-					centerX=Math.round(centerX/(w+l))*(w+l);
-					centerY=Math.round(centerY/(h+l))*(h+l);
-					nodes[obj].x1=centerX-w/2;
-					nodes[obj].x2=centerX+w/2;
-					nodes[obj].y1=centerY-h/2;
-					nodes[obj].y2=centerY+h/2;
-				}
-				else {
-					nodes[obj].x1=Math.round(nodes[obj].x1/(nodes[obj].r*2+defaultLine))*(nodes[obj].r*2+defaultLine);
-					nodes[obj].y1=Math.round(nodes[obj].y1/(nodes[obj].r*2+defaultLine))*(nodes[obj].r*2+defaultLine);
-				}
+		if(keyID===82 && state==="edit" && obj!==false) {
+			if(nodes[obj].shape!=="circle") {
+				var centerX=getMiddleX(obj);
+				var centerY=getMiddleY(obj);
+				var w=nodes[obj].x2-nodes[obj].x1;
+				var h=nodes[obj].y2-nodes[obj].y1;
+				var l=0;
+				if(nodes[obj].type!=="output") l=defaultLine+6;
+				centerX=Math.round(centerX/((defaultWidth+l)/2))*((defaultWidth+l)/2);
+				centerY=Math.round(centerY/((defaultWidth+l)/2))*((defaultWidth+l)/2);
+				nodes[obj].x1=centerX-w/2;
+				nodes[obj].x2=centerX+w/2;
+				nodes[obj].y1=centerY-h/2;
+				nodes[obj].y2=centerY+h/2;
+			}
+			else {
+				nodes[obj].x1=Math.round(nodes[obj].x1/((defaultWidth+defaultLine+6)/2))*((defaultWidth+defaultLine+6)/2);
+				nodes[obj].y1=Math.round(nodes[obj].y1/((defaultWidth+defaultLine+6)/2))*((defaultWidth+defaultLine+6)/2);
 			}
 			redrawAll();
-		}//KEY CTRL - quick new line
-		else if(keyID===17 && state==="edit" && !holdingClick && lineLast!==false && selected==="line" && lineStart===false) {
+		}//KEY F - quick new line
+		else if(keyID===70 && state==="edit" && !holdingClick && lineLast!==false && selected==="line" && lineStart===false) {
 			lineStart = lineLast;
 			lineStartActivate();
 			if(nodes[lineStart].shape==="circle") drawLine(nodes[lineStart].x1, nodes[lineStart].y1, canX, canY, defaultOutline, defaultLine);
 			else drawLine(getMiddleX(lineStart), getMiddleY(lineStart), canX, canY, defaultOutline, defaultLine);
+		}//KEY DELETE - delete object
+		else if((keyID===46 || keyID===81) && state==="edit" && !holdingClick) {
+			if(obj!==false) deleteObj(obj);
+			else {
+				var clickedLine = getClickedLine(canX, canY);
+				if(clickedLine!==false) lines.splice(clickedLine, 1);
+			}
+			redrawAll();
+		}//KEY WASD / up,left,down,right - PAN
+		else if([87, 65, 83, 68, 38, 37, 40, 39].includes(keyID)) {
+			var panAmount = 32/zoom;
+			switch(keyID) {
+				case 87: case 38://w - up
+					canvasY+=panAmount;
+					ctx.translate(0, panAmount);
+					break;
+				case 65: case 37://a - left
+					canvasX+=panAmount;
+					ctx.translate(panAmount, 0);
+					break;
+				case 83: case 40://s - down
+					canvasY-=panAmount;
+					ctx.translate(0, -panAmount);
+					break;
+				case 68: case 39://d - right
+					canvasX-=panAmount;
+					ctx.translate(-panAmount, 0);
+					break;
+			}
+			redrawAll();
+		}//KEY - UNZOOM
+		else if(keyID===109 && zoom>minZoom) {
+			ctx.translate(-canvasX, -canvasY);
+			canvasX+=midX/zoom;
+			canvasY+=midY/zoom;
+			ctx.scale(0.5,0.5);
+			ctx.translate(canvasX, canvasY);
+			zoom=zoom/2;
+			redrawAll();
+		}//KEY + ZOOM
+		else if(keyID===107 && zoom<maxZoom) {
+			ctx.translate(-canvasX, -canvasY);
+			zoom=zoom*2;
+			canvasX-=midX/zoom;
+			canvasY-=midY/zoom;
+			ctx.scale(2,2);
+			ctx.translate(canvasX, canvasY);
+			redrawAll();
+		}//KEY E - Edit
+		else if(keyID===69/*LOL*/ && obj!==false  && state==="edit" && !holdingClick) {
+			if(editObj(obj)) redrawAll();
 		}
 	});
 	
@@ -361,22 +410,20 @@ $(document).ready(function() {
 		ctx.translate(-(canX-panLastX), -(canY-panLastY));
 		canX=canX*zoom;
 		canY=canY*zoom;
-		if(e.originalEvent.wheelDelta/120 > 0) {
+		if(e.originalEvent.wheelDelta/120 > 0) {//ZOOM+
 			ctx.translate(-canvasX, -canvasY);
 			zoom=zoom*zoomSpeed;
 			canvasX-=midX/zoom;
 			canvasY-=midY/zoom;
 			ctx.scale(zoomSpeed,zoomSpeed);
 			ctx.translate(canvasX, canvasY);
-			//ctx.translate(-(midX/zoom), -(midY/zoom));
 		}
-		else{
+		else{//ZOOM- / UNZOOM
 			ctx.translate(-canvasX, -canvasY);
 			canvasX+=midX/zoom;
 			canvasY+=midY/zoom;
 			ctx.scale(1/zoomSpeed,1/zoomSpeed);
 			ctx.translate(canvasX, canvasY);
-			//ctx.translate(midX/zoom, midY/zoom);
 			zoom=zoom/zoomSpeed;
 		}
 		canX=canX/zoom;
@@ -626,6 +673,53 @@ $(document).ready(function() {
 		}
 	};
 	
+	//DELETE object
+	var deleteObj = function(id) {
+		for(j = lines.length-1; j>=0; j--) {
+			if(lines[j].startID===id || lines[j].endID===id) lines.splice(j, 1);
+		}
+		if(id<nodes.length-1) {
+			nodes.splice(id, 1);
+			reorganize(id);
+		}
+		else nodes.splice(id, 1);
+	};
+	
+	//EDIT object
+	var editObj = function(id) {
+		if(["delay", "button", "switch", "text", "output", "not", "pulser", "toggle"].includes(nodes[id].type)) {
+			switch(nodes[id].type) {
+				case "delay": case "pulser"://DELAY - PULSER
+					var delay=prompt("Set delay: (ticks)", nodes[id].delay);
+					if(isNaN(parseFloat(delay)) || parseFloat(delay)<1) alert("Invalid number!");
+					else {
+						nodes[id].delay=Math.round(parseFloat(delay));
+						nodes[id].countdown=Math.round(parseFloat(delay));
+					}
+					break;
+				case "text"://TEXT
+					var name = prompt("Enter text:");
+					if(name!=undefined && name!=="" && name!==" " && name!==nodes[id].name) {
+						var mX = getMiddleX(id);
+						ctx.font = textSize+"px Arial";
+						nodes[id].name = name;
+						nodes[id].x1 = mX-(ctx.measureText(name).width/2);
+						nodes[id].x2 = mX+(ctx.measureText(name).width/2);
+					}
+					break;
+				case "not": case "toggle"://NOT - TOGGLE
+					nodes[id].powered = !nodes[id].powered;
+					nodes[id].startPowered = !nodes[id].startPowered;
+					break;
+				default: //BUTTON - SWITCH - OUTPUT LAMP
+					var name = prompt("Enter name:", nodes[id].name);
+					if(name!=undefined && name!==nodes[id].name) nodes[id].name = name;
+			}
+			return true;
+		}
+		return false;
+	};
+	
 	//MAIN RENDER EVERYTHING - Re-Draw All
 	var redrawAll = function() {
 		clear();
@@ -634,34 +728,34 @@ $(document).ready(function() {
 		}
 		for(i=0; i<nodes.length; i++) {
 			switch(nodes[i].type) {
-				case "text":
+				case "text"://TEXT
 					drawText(getMiddleX(i), getMiddleY(i), nodes[i].name, defaultText, textSize);
-					break;
+					break;//BUTTON - SWITCH
 				case "switch": case "button":
 					drawCircle(nodes[i].x1, nodes[i].y1, nodes[i].r, powerColor(i), defaultOutline, defaultLine);
 					if(nodes[i].name!="") drawText(nodes[i].x1, nodes[i].y1, nodes[i].name, defaultName, fontSize);
 					break;
-				case "source":
+				case "source"://SOURCE
 					drawCircle(nodes[i].x1, nodes[i].y1, nodes[i].r, defaultPower, defaultOutline, defaultLine);
 					drawText(nodes[i].x1, nodes[i].y1, "+", defaultText, textSize);
 					break;
-				case "or": case "and": case "toggle": case "monostable":
+				case "or": case "and": case "toggle": case "monostable"://AND - OR - TOGGLE - MONOSTABLE
 					drawRect(nodes[i].x1, nodes[i].y1, nodes[i].x2, nodes[i].y2, powerColor(i), defaultOutline, defaultLine);
 					drawText(getMiddleX(i),getMiddleY(i), nodes[i].type.toUpperCase(), defaultGate, fontSize);
 					break;
-				case "not": case "random":
+				case "not": case "random"://NOT - RANDOM
 					drawCircle(nodes[i].x1, nodes[i].y1, nodes[i].r, powerColor(i), defaultOutline, defaultLine);
 					drawText(nodes[i].x1, nodes[i].y1, nodes[i].type.toUpperCase(), defaultGate, fontSize);
 					break;
-				case "delay":
+				case "delay"://DELAY
 					drawOval(nodes[i].x1, nodes[i].y1, nodes[i].x2, nodes[i].y2, powerColor(i), defaultOutline, defaultLine);
 					drawText(getMiddleX(i),getMiddleY(i), nodes[i].delay, defaultGate, fontSize);
 					break;
-				case "output":
+				case "output"://OUTPUT LAMP
 					drawRect(nodes[i].x1, nodes[i].y1, nodes[i].x2, nodes[i].y2, powerColor(i), noOutline, 0);
 					if(nodes[i].name!="") drawText(getMiddleX(i),getMiddleY(i), nodes[i].name, defaultText, fontSize);
 					break;
-				case "pulser":
+				case "pulser"://PULSER
 					drawCircle(nodes[i].x1, nodes[i].y1, nodes[i].r, powerColor(i), defaultOutline, defaultLine);
 					drawText(getMiddleX(i),getMiddleY(i), nodes[i].delay, defaultGate, fontSize);
 					break;
@@ -767,53 +861,20 @@ $(document).ready(function() {
 							if(text!=undefined && text!=="" && text!==" ") nodes.push({shape:"rect", type:"text", name:text, x1:x-(ctx.measureText(text).width/2), y1:y-(textSize/2), x2:x+(ctx.measureText(text).width/2), y2:y+(textSize/2)});
 							break;
 					}
+					dragId=nodes.length-1;
+					nodeMoveActivate();
 				}
 			}
 			else if(selected==="delete") {
 				if(clickResult!==false) {//DELETE OBJECT
-					for(j = lines.length-1; j>=0; j--) {
-						if(lines[j].startID===clickResult || lines[j].endID===clickResult) lines.splice(j, 1);
-					}
-					if(clickResult<nodes.length-1) {
-						nodes.splice(clickResult, 1);
-						reorganize(clickResult);
-					}
-					else nodes.splice(clickResult, 1);
+					deleteObj(clickResult);
 				}
 				else if(clickResultLine!==false) {//DELETE LINE
 					lines.splice(clickResultLine, 1);
 				}
 			}//EDIT OBJECT PROPERTIES
 			else if(selected==="edit" && clickResult!==false) {
-				if(["delay", "button", "switch", "text", "output", "not", "pulser", "toggle"].includes(nodes[clickResult].type)) {
-					switch(nodes[clickResult].type) {
-						case "delay": case "pulser"://DELAY - PULSER
-							var delay=prompt("Set delay: (ticks)", nodes[clickResult].delay);
-							if(isNaN(parseFloat(delay)) || parseFloat(delay)<1) alert("Invalid number!");
-							else {
-								nodes[clickResult].delay=Math.round(parseFloat(delay));
-								nodes[clickResult].countdown=Math.round(parseFloat(delay));
-							}
-							break;
-						case "text"://TEXT
-							var name = prompt("Enter text:");
-							if(name!=undefined && name!=="" && name!==" " && name!==nodes[clickResult].name) {
-								var mX = getMiddleX(clickResult);
-								ctx.font = textSize+"px Arial";
-								nodes[clickResult].name = name;
-								nodes[clickResult].x1 = mX-(ctx.measureText(name).width/2);
-								nodes[clickResult].x2 = mX+(ctx.measureText(name).width/2);
-							}
-							break;
-						case "not": case "toggle"://NOT - TOGGLE
-							nodes[clickResult].powered = !nodes[clickResult].powered;
-							nodes[clickResult].startPowered = !nodes[clickResult].startPowered;
-							break;
-						default: //BUTTON - SWITCH - OUTPUT LAMP
-							var name = prompt("Enter name:", nodes[clickResult].name);
-							if(name!=undefined && name!==nodes[clickResult].name) nodes[clickResult].name = name;
-					}
-				}
+				editObj(clickResult);
 			}
 			else if(selected==="line") {//LINE
 				if(lineStart===false && clickResult!==false) {//START LINE
@@ -834,7 +895,7 @@ $(document).ready(function() {
 		}//CLICK BUTTON / SWITCH while running
 		else if(state==="running" && clickResult!==false && selected!=="pan") {
 			if(nodes[clickResult].type==="button") nodes[clickResult].powered=true;
-			else if(nodes[clickResult].type==="switch") nodes[clickResult].powered=!nodes[clickResult].powered;
+			else if(nodes[clickResult].type==="switch") nodes[clickResult].powered = !nodes[clickResult].powered;
 		}
 		redrawAll();
 	};
