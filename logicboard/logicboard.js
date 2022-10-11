@@ -270,7 +270,8 @@ $(document).ready(function() {
 	//Change SPEED
 	$("#speed").on("click", function() {
 		var newSpeed = prompt("Simulation speed (Ticks per second): (Hz)", "100");
-		if(isNaN(parseFloat(newSpeed)) || parseFloat(newSpeed)<0.1 || parseFloat(newSpeed)>1000) alert("Invalid number!");
+		if(newSpeed==null || newSpeed===false) return;
+		else if(isNaN(parseFloat(newSpeed)) || parseFloat(newSpeed)<0.1 || parseFloat(newSpeed)>1000) alert("Invalid number!");
 		else tickSpeed=1000/parseFloat(newSpeed);
 	});
 	
@@ -288,7 +289,7 @@ $(document).ready(function() {
 		var keyID = parseInt(key.which,10);
 		var canX=(globalX/zoom)-canvasX;
 		var canY=(globalY/zoom)-canvasY;
-		if($('#canvas:hover').length!=0) var obj = getClickedNode(canX, canY);
+		if($('#canvas:hover').length != 0) var obj = getClickedNode(canX, canY);
 		else var obj=false;
 		//KEY R - align to grid
 		if(keyID===82 && state==="edit" && obj!==false) {
@@ -895,7 +896,7 @@ $(document).ready(function() {
 		}//CLICK BUTTON / SWITCH while running
 		else if(state==="running" && clickResult!==false && selected!=="pan") {
 			if(nodes[clickResult].type==="button") nodes[clickResult].powered=true;
-			else if(nodes[clickResult].type==="switch") nodes[clickResult].powered = !nodes[clickResult].powered;
+			else if(nodes[clickResult].type==="switch") nodes[clickResult].powered=!nodes[clickResult].powered;
 		}
 		redrawAll();
 	};
