@@ -45,7 +45,7 @@ $(document).ready(function() {
 	};
 	
 	var clear = function() {
-		ctx.clearRect(0, 0, width, height);
+		ctx.clearRect(0-canvasX, 0-canvasY, width+canvasX, height+canvasY);
 	};
 	
 	var degToRad = function(deg) {
@@ -68,13 +68,17 @@ $(document).ready(function() {
 	ctx.canvas.height = window.innerHeight-70;
 	var width = canvas.width;
 	var height = canvas.height;
-	//ctx.translate(midX, midY);
-	//ctx.rotate(20*Math.PI/180); //20 degrees rotate
 	ctx.font = "16px Arial";
 	ctx.textAlign="center";
 	ctx.textBaseline="middle";
 	
-	var dragLastX, dragLastY = 0;
+	var panLastX = 0;
+	var panLastY = 0;
+	var canvasX = 50;
+	var canvasY = 50;
+	ctx.translate(canvasX, canvasY);
+	var dragLastX = 0;
+	var	dragLastY = 0;
 	var dragId = 0;
 	var holdingClick = false;
 	var lineStart = false;
@@ -100,12 +104,12 @@ $(document).ready(function() {
 	var defaultGate = "rgba(128, 128, 128, 255)";
 	var defaultRadius = 24;
 	var defaultWidth = 80;
-	var defaultHeight = 50;
+	var defaultHeight = 40;
 	
 	/*-----------------------------------------------------------------------------------------------*/
 	
 	$("#SelectNode button").on("click", function() {
-		if(["text", "toggle", "button", "source", "or", "and", "not", "delay", "line", "output", "edit", "delete", "start"].includes($(this).attr("id"))) {
+		if(["text", "toggle", "button", "source", "or", "and", "not", "delay", "line", "output", "edit", "delete", "start", "pan"].includes($(this).attr("id"))) {
 			selected = $(this).attr("id");
 			if(selected==="start") startSimulation();
 		}
@@ -141,6 +145,10 @@ $(document).ready(function() {
 			var rect = canvas.getBoundingClientRect();
 			var canX = event.clientX - rect.left;
 			var canY = event.clientY - rect.top;
+			panLastX = canX;
+			panLastY = canY;
+			canX-=canvasX;
+			canY-=canvasY;
 			dragLastX = canX;
 			dragLastY = canY;
 			holdingClick = true;
@@ -154,11 +162,12 @@ $(document).ready(function() {
 			var rect = canvas.getBoundingClientRect();
 			var canX = event.clientX - rect.left;
 			var canY = event.clientY - rect.top;
+			canX-=canvasX;
+			canY-=canvasY;
 			var moveX = canX-dragLastX;
 			var moveY = canY-dragLastY;
 			dragLastX = canX;
 			dragLastY = canY;
-
 			nodes[dragId].x1+=moveX;
 			nodes[dragId].y1+=moveY;
 			if(nodes[dragId].type==="or" || nodes[dragId].type==="and" || nodes[dragId].type==="delay" || nodes[dragId].type==="output") {
@@ -171,6 +180,7 @@ $(document).ready(function() {
 	
 	$(document).on("mouseup", function(event) {
 		$("#canvas").off("mousemove.drag");
+		$("#canvas").off("mousemove.pan");
 		holdingClick = false;
 	});
 	
@@ -180,9 +190,26 @@ $(document).ready(function() {
 			var rect = canvas.getBoundingClientRect();
 			var canX = event.clientX - rect.left;
 			var canY = event.clientY - rect.top;
+			canX-=canvasX;
+			canY-=canvasY;
 			redrawAll();
 			if(nodes[lineStart].type!=="delay" && nodes[lineStart].type!=="or" && nodes[lineStart].type!=="and") drawLine(nodes[lineStart].x1, nodes[lineStart].y1, canX, canY, defaultOutline, defaultLine);
 			else drawLine(nodes[lineStart].x1+((nodes[lineStart].x2-nodes[lineStart].x1)/2), nodes[lineStart].y1+((nodes[lineStart].y2-nodes[lineStart].y1)/2), canX, canY, defaultOutline, defaultLine);
+		});
+	};
+	
+	var panActivate = function() {
+		$("#canvas").on("mousemove.pan", function(event) {
+			event.preventDefault();
+			var rect = canvas.getBoundingClientRect();
+			var canX = event.clientX - rect.left;
+			var canY = event.clientY - rect.top;
+			canvasX=canvasX+(canX-panLastX);
+			canvasY=canvasY+(canY-panLastY);
+			ctx.translate(canX-panLastX, canY-panLastY);
+			panLastX = canX;
+			panLastY = canY;
+			redrawAll();
 		});
 	};
 	
@@ -436,7 +463,7 @@ $(document).ready(function() {
 	var clickOn = function(x, y) {
 		var clickResult = getClickedNode(x, y);
 		var clickResultLine = false;
-		if(state==="edit") {
+		if(state==="edit" && selected!=="pan") {
 			var clickResultLine = getClickedLine(x, y);
 			if(selected!=="line" && selected!=="start" && selected!=="edit" && selected!=="delete") {
 				if(clickResult!==false) {
@@ -524,10 +551,13 @@ $(document).ready(function() {
 				}
 			}
 		}
-		else if(state==="running" && clickResult!==false) {
+		else if(state==="running" && clickResult!==false && selected!=="pan") {
 			if(nodes[clickResult].type==="button") nodes[clickResult].powered=true;
 			else if(nodes[clickResult].type==="toggle" && nodes[clickResult].powered===false) nodes[clickResult].powered=true;
 			else if(nodes[clickResult].type==="toggle") nodes[clickResult].powered=false;
+		}
+		else if(selected==="pan" || state!=="edit") {
+			panActivate();
 		}
 		redrawAll();
 	};
