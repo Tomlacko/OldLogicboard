@@ -1,29 +1,33 @@
 $(document).ready(function() {
 	
 	var drawCircle = function(x, y, r, color, outline, line) {
-		ctx.beginPath();
 		ctx.fillStyle = color;
 		ctx.strokeStyle = outline;
 		ctx.lineWidth = line;
+		ctx.beginPath();
 		ctx.arc(x, y, r, 0, 2 * Math.PI, false);
 		ctx.stroke();
 		ctx.fill();
 	};
 	
 	var drawLine = function(startX, startY, endX, endY, color, line) {
-		ctx.beginPath();
 		ctx.lineWidth = line;
-		ctx.strokeStyle = color;
+		var grad=ctx.createLinearGradient(startX, startY, endX, endY);
+		grad.addColorStop(0, color);
+		if(color===defaultPower) grad.addColorStop(1, defaultPowerGradient);
+		else grad.addColorStop(1, defaultOutlineGradient);
+		ctx.strokeStyle = grad;
+		ctx.beginPath();
 		ctx.moveTo(startX, startY);
 		ctx.lineTo(endX, endY);
 		ctx.stroke();
 	};
 	
 	var drawRect = function(startX, startY, endX, endY, color, outline, line) {
-		ctx.beginPath();
 		ctx.fillStyle=color;
 		ctx.strokeStyle=outline;
 		ctx.lineWidth=line;
+		ctx.beginPath();
 		ctx.rect(startX, startY, endX-startX, endY-startY);
 		ctx.stroke();
 		ctx.fill();
@@ -35,8 +39,8 @@ $(document).ready(function() {
 	};
 	
 	var drawText = function(x, y, text, color) {
-		ctx.beginPath();
 		ctx.fillStyle=color;
+		ctx.beginPath();
 		ctx.fillText(text, x, y);
 	};
 	
@@ -78,6 +82,8 @@ $(document).ready(function() {
 	var nodes = [];
 	var nNodes = {nText:0, nToggle:0, nButton:0, nSource:0, nOr:0, nAnd:0, nNot:0, nDelay:0, nOutput:0, nLine:0};
 	var lines = [];
+	var nodeCount = 0;
+	var lineCount = 0;
 	var tickSpeed = 10;
 	var selected = "toggle";
 	var state = "edit";
@@ -86,7 +92,9 @@ $(document).ready(function() {
 	var defaultLine = 4;
 	var defaultColor = "rgba(200, 200, 200, 255)";
 	var defaultOutline = "rgba(0, 0, 0, 255)";
+	var defaultOutlineGradient = "rgba(150, 150, 150, 255)";
 	var defaultPower = "rgba(255, 0, 0, 255)";
+	var defaultPowerGradient = "rgba(255, 150, 150, 255)";
 	var defaultText = "rgba(0, 0, 0, 255)";
 	var defaultName = "rgba(0, 0, 255, 255)";
 	var defaultGate = "rgba(128, 128, 128, 255)";
@@ -293,25 +301,28 @@ $(document).ready(function() {
 	
 	var addNode = function(type, powered, x1, y1, x2, y2, name, delay) {
 		if(name==undefined) name="";
-		nodes.push({type:type, id:nodes.length, powered:powered, x1:x1, y1:y1, x2:x2, y2:y2, name:name});
+		nodes.push({type:type, id:nodeCount, powered:powered, x1:x1, y1:y1, x2:x2, y2:y2, name:name});
 		if(type==="delay") {
 			nodes[nodes.length-1].delay=delay;
 			nodes[nodes.length-1].countdown=delay;
 		}
 		modifyNodeCount(type, 1);
+		nodeCount++;
 		return nodes.length-1;
 	};
 	
 	var addNodeCircle = function(type, powered, x1, y1, r, name) {
 		if(name==undefined) name="";
-		nodes.push({type:type, id:nodes.length, powered:powered, x1:x1, y1:y1, r, name:name});
+		nodes.push({type:type, id:nodeCount, powered:powered, x1:x1, y1:y1, r, name:name});
 		modifyNodeCount(type, 1);
+		nodeCount++;
 		return nodes.length-1;
 	};
 	
 	var addLine = function(powered, startID, endID) {
-		lines.push({id:lines.length, powered:powered, startID:startID, endID:endID});
+		lines.push({id:lineCount, powered:powered, startID:startID, endID:endID});
 		modifyNodeCount("line", 1);
+		lineCount++;
 		return lines.length-1;
 	};
 	
@@ -520,6 +531,6 @@ $(document).ready(function() {
 		}
 		redrawAll();
 	};
+	//Remove endora text
+	$("i").parent().parent().parent().remove();
 });
-//Remove endora text
-$("i").parent().parent().parent().remove();
