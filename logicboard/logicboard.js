@@ -33,8 +33,7 @@ $(document).ready(function() {
 		if(power) ctx.fillStyle = nodePoweredColor;
 		else ctx.fillStyle = nodeUnpoweredColor;
 		ctx.strokeStyle=outlineColor;
-		if(!outlineW) ctx.lineWidth=outlineWidth;
-		else ctx.lineWidth=outlineW;
+		ctx.lineWidth=outlineWidth;
 		ctx.beginPath();
 		ctx.rect(startX, startY, endX-startX, endY-startY);
 		if(outline) ctx.stroke();
@@ -106,17 +105,6 @@ $(document).ready(function() {
 		};
 	}
 	
-	//MOZILLA :focus replacement
-	if(/Firefox/i.test(navigator.userAgent)) {
-		$(".node, .button, #labelFile").on("mousedown", function(e) {
-			$(".node, .button").removeClass("activated");
-			$(this).addClass("activated");
-		});
-		$(document).on("mouseup", function(e) {
-			$(".node, .button, #labelFile").removeClass("activated");
-		});
-	}
-	
 	//trigger file download
 	function downloadProject(filename, datastring) {
 		if(!window.navigator.msSaveBlob) {
@@ -147,8 +135,8 @@ $(document).ready(function() {
 	
 	//resize canvas to window
 	$(window).on("resize", function() {
-		ctx.canvas.height = $(window).height()-120;
-		ctx.canvas.width = $(window).width();
+		ctx.canvas.height = Math.max($(window).height()-120, 10);
+		ctx.canvas.width = Math.max($(window).width(), 10);
 		width = canvas.width;
 		height = canvas.height;
 		midX = width/2;
@@ -384,9 +372,8 @@ $(document).ready(function() {
 	$(window).trigger("resize");
 	
 	
-	
 	/*
-	TAGS:   r,x,y, *s=shape*, n=name/note, t=type, p=powered, a=startID, b=endID, d=delay, c=countdown, f=fired, sp=startPowered, w=width(text)
+	TAGS:   r,x,y, *s=shape*, n=name/note, t=type, p=powered, a=startID, b=endID, d=delay, c=countdown, f=fired, q=startPowered, w=width(text)
 	
 	SHAPES: c=circle, r=rect=rectangle, o=oval
 	
@@ -399,6 +386,15 @@ $(document).ready(function() {
 	//prevent button dragging and highlighting
 	$(document).on("mousedown", function(e) {
 		if(e.which===1 && !$(e.target).is("input")) e.preventDefault();
+	});
+	
+	//:focus -> .activated
+	$(".node, .button, #labelFile").on("mousedown", function(e) {
+		$(".node, .button").removeClass("activated");
+		$(this).addClass("activated");
+	});
+	$(document).on("mouseup", function(e) {
+		$(".node, .button, #labelFile").removeClass("activated");
 	});
 	
 	//hide overlay
@@ -452,7 +448,7 @@ $(document).ready(function() {
 		if(state!=="edit") stopSimulation();
 		$("#overlay, #popup_save").removeClass("hidden");
 		$("#exportSave").val(btoa(JSON.stringify([nodes, lines, [fileVersion, canvasX, canvasY, zoom, tickSpeed]])));
-		$("#exportSave").focus();
+		$("#downloadName").focus();
 	});
 	
 	//clipboard copy
@@ -629,6 +625,14 @@ $(document).ready(function() {
 		redraw();
 	});
 	
+	$("#place").on("mouseenter", function() {
+		$(".placeOpt:not(.hidden) input").focus();
+	});
+	
+	$("#place").on("mouseleave", function() {
+		$(".placeOpt:not(.hidden) input").blur();
+	});
+	
 	//TOOLBAR - Select item
 	$(".node, #delete, #edit, #replace, #select").on("click", function() {
 		if(state==="edit") {
@@ -699,7 +703,7 @@ $(document).ready(function() {
 			panLastX=globalX/zoom;
 			panLastY=globalY/zoom;
 			$("#unzoom").removeClass("disabled");
-			if(!(zoom<maxZoom)) $("#zoom").addClass("disabled");
+			if(zoom===maxZoom) $("#zoom").addClass("disabled");
 		}
 	}
 	
@@ -709,42 +713,49 @@ $(document).ready(function() {
 			ctx.translate(-canvasX, -canvasY);
 			canvasX+=midX/zoom;
 			canvasY+=midY/zoom;
-			canvasX=Math.round(canvasX);
-			canvasY=Math.round(canvasY);
+			if(zoom<=2) {
+				canvasX=Math.round(canvasX);
+				canvasY=Math.round(canvasY);
+			}
 			ctx.scale(1/zoomSpeed,1/zoomSpeed);
 			ctx.translate(canvasX, canvasY);
 			zoom=zoom/zoomSpeed;
 			panLastX=globalX/zoom;
 			panLastY=globalY/zoom;
 			$("#zoom").removeClass("disabled");
-			if(!(zoom>minZoom)) $("#unzoom").addClass("disabled");
+			if(zoom===minZoom) $("#unzoom").addClass("disabled");
 		}
 	}
 	
-	//ZOOM+- on cursor FUNCTION
+	//ZOOM CENTERED on mouse cursor
 	function centeredZoom(scrollAmount) {
 		var canX=globalX/zoom;
 		var canY=globalY/zoom;
 		var adjustX = midX/zoom;
 		var adjustY = midY/zoom;
-		canvasX=canvasX-(canX-adjustX);
-		canvasY=canvasY-(canY-adjustY);
-		ctx.translate(-(canX-adjustX), -(canY-adjustY));
-		canX=canX*zoom;
-		canY=canY*zoom;
+		canvasX-=canX-adjustX;
+		canvasY-=canY-adjustY;
+		ctx.translate(adjustX-canX, adjustY-canY);
 		if(scrollAmount > 0) {
 			zoomF();
 		}
 		else{
 			unzoomF();
 		}
-		canX=canX/zoom;
-		canY=canY/zoom;
+		canX=globalX/zoom;
+		canY=globalY/zoom;
 		adjustX = midX/zoom;
 		adjustY = midY/zoom;
-		canvasX=canvasX+(canX-adjustX);
-		canvasY=canvasY+(canY-adjustY);
-		ctx.translate(canX-adjustX, canY-adjustY);
+		if(zoom<=1) {
+			canvasX+=Math.round(canX-adjustX);
+			canvasY+=Math.round(canY-adjustY);
+			ctx.translate(Math.round(canX-adjustX), Math.round(canY-adjustY));
+		}
+		else {
+			canvasX+=canX-adjustX;
+			canvasY+=canY-adjustY;
+			ctx.translate(canX-adjustX, canY-adjustY);
+		}
 		panLastX=globalX/zoom;
 		panLastY=globalY/zoom;
 		redraw();
@@ -804,6 +815,7 @@ $(document).ready(function() {
 			if(parseInt(key.which,10)===27 && !$("#overlay").hasClass("hidden")) $("#close").trigger("mousedown");
 			return;
 		}
+		if($("#place:hover").length!=0) return;
 		var keyID = parseInt(key.which,10);
 		var canX=realX;
 		var canY=realY;
@@ -976,6 +988,7 @@ $(document).ready(function() {
 	
 	//MOUSE Drag Object - mousemove
 	function nodeMoveActivate() {
+		$("#place").find("*").add("#place").css("pointer-events", "none");
 		dragLastX = realX;
 		dragLastY = realY;
 		$("#canvas").on("mousemove.drag", function(event) {
@@ -997,6 +1010,7 @@ $(document).ready(function() {
 		if(e.which===1) {
 			$("#canvas").off("mousemove.drag");
 			$("#canvas").off("mousemove.pan");
+			$("#place").find("*").add("#place").css("pointer-events", "auto");
 			holdingClick = false;
 		}
 	});
@@ -1010,6 +1024,7 @@ $(document).ready(function() {
 	
 	//MOUSE pan / translate canvas - mousemove
 	function panActivate() {
+		$("#place").find("*").add("#place").css("pointer-events", "none");
 		panLastX=globalX/zoom;
 		panLastY=globalY/zoom;
 		$("#canvas").on("mousemove.pan", function(event) {
@@ -1071,11 +1086,17 @@ $(document).ready(function() {
 					if(!holdingClick) nodes[i].p = false;
 					break;
 				case 3://PULSER
-					if(nodes[i].p) nodes[i].p = false;
-					if(nodes[i].c>0) nodes[i].c--;
-					else {
-						nodes[i].p = true;
+					if(testOr(i)) {
 						nodes[i].c = nodes[i].d;
+						nodes[i].p = false;
+					}
+					else {
+						if(nodes[i].p) nodes[i].p = false;
+						if(nodes[i].c>0) nodes[i].c--;
+						else {
+							nodes[i].p = true;
+							nodes[i].c = nodes[i].d;
+						}
 					}
 					break;
 				case 4://OR
@@ -1160,7 +1181,7 @@ $(document).ready(function() {
 	//RESET Objects after simulation STOP
 	function resetPower() {
 		for(j=0; j<nodes.length; j++) {
-			if(nodes[j].sp!=undefined) nodes[j].p = nodes[j].sp;
+			if(nodes[j].q!=undefined) nodes[j].p = nodes[j].q;
 			else if(nodes[j].p!=undefined) nodes[j].p = false;
 			if(nodes[j].d!=undefined) nodes[j].c = nodes[j].d;
 			if(nodes[j].f!=undefined) nodes[j].f = false;
@@ -1172,24 +1193,35 @@ $(document).ready(function() {
 	
 	//GET Object hitbox
 	function getWidth(id) {
-		if(design[nodes[id].t].outline) return design[nodes[id].t].width + outlineWidth;
-		else return design[nodes[id].t].width;
+		if(nodes[id].t===13) return nodes[id].w;
+		else {
+			if(nodes[id].t===12 && zoom<1) return design[12].width + Math.log(1/zoom)/Math.log(2)*2;
+			else if(design[nodes[id].t].outline) return design[nodes[id].t].width + outlineWidth;
+			else return design[nodes[id].t].width;
+		}
 	}
 	function getHeight(id) {
-		if(design[nodes[id].t].outline) return design[nodes[id].t].height + outlineWidth;
-		else return design[nodes[id].t].height;
+		if(nodes[id].t===13) return design[13].textSize;
+		else {
+			if(nodes[id].t===12 && zoom<1) return design[12].height + Math.log(1/zoom)/Math.log(2)*2;
+			else if(design[nodes[id].t].outline) return design[nodes[id].t].height + outlineWidth;
+			else return design[nodes[id].t].height;
+		}
 	}
 	function getRadius(id) {
 		if(design[nodes[id].t].outline) return design[nodes[id].t].radius + outlineWidth/2;
 		else return design[nodes[id].t].radius;
 	}
-	
 	//GET Object size
 	function getSizeX(id) {
-		return design[nodes[id].t].width/2;
+		if(nodes[id].t===13) return nodes[id].w/2;
+		else if(nodes[id].t===12 && zoom<1) return design[12].width/2 + Math.log(1/zoom)/Math.log(2);
+		else return design[nodes[id].t].width/2;
 	}
 	function getSizeY(id) {
-		return design[nodes[id].t].height/2;
+		if(nodes[id].t===13) return design[13].textSize/2;
+		else if(nodes[id].t===12 && zoom<1) return design[12].height/2 + Math.log(1/zoom)/Math.log(2);
+		else return design[nodes[id].t].height/2;
 	}
 	function getSizeR(id) {
 		return design[nodes[id].t].radius;
@@ -1253,7 +1285,7 @@ $(document).ready(function() {
 					break;
 				case 6: case 8://EDIT STARTING POWER (NOT, TOGGLE)
 					nodes[id].p = !nodes[id].p;
-					nodes[id].sp = !nodes[id].sp;
+					nodes[id].q = !nodes[id].q;
 					break;
 				case 11://EDIT NOTE (NOTE)
 					//not yet implemented
@@ -1320,9 +1352,9 @@ $(document).ready(function() {
 			drawLine(nodes[lines[i].a].x, nodes[lines[i].a].y, nodes[lines[i].b].x, nodes[lines[i].b].y, lines[i].p);
 		}
 		for(i=0; i<nodes.length; i++) {
+			//DRAW NODES
 			if(design[nodes[i].t].shape==="rect" && nodes[i].t!==13) {
-				if(nodes[i].t===12 && zoom<1) drawRect(nodes[i].x-getSizeX(i), nodes[i].y-getSizeY(i), nodes[i].x+getSizeX(i), nodes[i].y+getSizeY(i), nodes[i].p, true, Math.log(1/zoom)/Math.log(2));
-				else drawRect(nodes[i].x-getSizeX(i), nodes[i].y-getSizeY(i), nodes[i].x+getSizeX(i), nodes[i].y+getSizeY(i), nodes[i].p, design[nodes[i].t].outline);
+				drawRect(nodes[i].x-getSizeX(i), nodes[i].y-getSizeY(i), nodes[i].x+getSizeX(i), nodes[i].y+getSizeY(i), nodes[i].p, design[nodes[i].t].outline);
 			}
 			else if(design[nodes[i].t].shape==="circle") {
 				drawCircle(nodes[i].x, nodes[i].y, design[nodes[i].t].radius, nodes[i].p, design[nodes[i].t].outline, outlineWidth);
@@ -1330,7 +1362,7 @@ $(document).ready(function() {
 			else if(design[nodes[i].t].shape==="oval") {
 				drawOval(nodes[i].x-getSizeX(i), nodes[i].y-getSizeY(i), nodes[i].x+getSizeX(i), nodes[i].y+getSizeY(i), nodes[i].p, design[nodes[i].t].outline);
 			}
-			
+			//DRAW NODE TEXT
 			if([1, 2, 11, 12, 13].includes(nodes[i].t)) {//switch, button, note, output, text
 				var text = nodes[i].n;
 			}
@@ -1354,16 +1386,16 @@ $(document).ready(function() {
 	function getClickedNode(x, y) {
 		if(nodes.length===0) return false;
 		for(i = nodes.length-1; i>=0; i--) {
-			if(design[nodes[i].t].shape==="rect") {//rectangle
+			if(design[nodes[i].t].shape==="rect") {
 				if(x>=nodes[i].x-getWidth(i)/2 && nodes[i].x+getWidth(i)/2>=x && y>=nodes[i].y-getHeight(i)/2 && nodes[i].y+getHeight(i)/2>=y) return i;
-			}//oval
+			}
 			else if(design[nodes[i].t].shape==="oval") {
 				var h = getSizeY(i);
 				var w = getSizeX(i)-h;
 				if(design[nodes[i].t].outline) var o = outlineWidth/2;
 				else var o = 0;
 				if((x>=nodes[i].x-w && nodes[i].x+w>=x && y>=nodes[i].y-h-o && nodes[i].y+h+o>=y) || (Math.sqrt(Math.pow(Math.abs(nodes[i].x-w-x), 2)+Math.pow(Math.abs(nodes[i].y-y), 2))<=h+o) || (Math.sqrt(Math.pow(Math.abs(nodes[i].x+w-x), 2)+Math.pow(Math.abs(nodes[i].y-y), 2))<=h+o)) return i;
-			}//circle
+			}
 			else if(design[nodes[i].t].shape==="circle") {
 				if(Math.sqrt(Math.pow(Math.abs(nodes[i].x-x), 2)+Math.pow(Math.abs(nodes[i].y-y), 2))<=getRadius(i)) return i;
 			}
@@ -1433,7 +1465,7 @@ $(document).ready(function() {
 							nodes.push({t:5, p:false, x:x, y:y});
 							break;
 						case 6://NOT
-							nodes.push({t:6, p:true, sp:true, x:x, y:y});
+							nodes.push({t:6, p:true, q:true, x:x, y:y});
 							break;
 						case 7://DELAY
 							var delay=prompt("Set delay: (ticks)", lastDelay);
@@ -1444,7 +1476,7 @@ $(document).ready(function() {
 							}
 							break;
 						case 8://TOGGLE
-							nodes.push({t:8, p:false, sp:false, f:false, x:x, y:y});
+							nodes.push({t:8, p:false, q:false, f:false, x:x, y:y});
 							break;
 						case 9://MONOSTABLE
 							nodes.push({t:9, p:false, f:false, x:x, y:y});
