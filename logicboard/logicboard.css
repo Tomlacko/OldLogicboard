@@ -5,9 +5,8 @@
 }
 
 body {
-	background-color:#BBB;
+	background-color:#999;
 	font-size:0px;
-	overflow:hidden;
 }
 
 h1 {
@@ -32,7 +31,7 @@ p, strong, button {
 
 .slider {
 	display:inline-block;
-	padding:3px;
+	border:2px solid #BBB;
 	background-color:#CCC;
 	width:30px;
 	height:15px;
@@ -40,12 +39,13 @@ p, strong, button {
 	text-align:left;
 	cursor:pointer;
 	margin-left:5px;
-	transition:background 0.25s;
+	transition:background 0.2s;
+	vertical-align:bottom;
 }
 
 .slider.activated {
-	background-color:#2196F3;
-	text-align:right;
+	background-color:#1186E3;
+	border:2px solid #1990EB;
 }
 
 .slider > div {
@@ -55,13 +55,12 @@ p, strong, button {
 	width:15px;
 	height:15px;
 	pointer-events:none;
+	transition:margin-left 0.2s;
+	transition-timing-function:ease-out;
 }
 
-#inputFile {
-	width:0.1px;
-	height:0.1px;
-	opacity:0;
-	z-index:-1;
+.slider.activated > div {
+	margin-left:15px;
 }
 
 #labelFile {
@@ -72,7 +71,6 @@ p, strong, button {
 	background:radial-gradient(#DDD, #FFF);
 	margin-top:10px;
 	cursor:pointer;
-	transition:background 0.4s;
 	display:inline-block;
 }
 
@@ -80,14 +78,14 @@ p, strong, button {
 	background:radial-gradient(#E5E5E5, #FFF);
 }
 
-#labelFile:active {
+#labelFile:active, #labelFile.activated {
 	background:radial-gradient(#FFF, #D8D8D8);
 }
 
 #fileOverlay {
-	margin-top:122px;
+	margin-top:120px;
 	position:fixed;
-	height:calc(100% - 122px);
+	height:calc(100% - 120px);
 	width:100%;
 	background-color:#ACE;
 	opacity:0;
@@ -131,7 +129,7 @@ p, strong, button {
 	position:fixed;
 	width:100%;
 	height:100%;
-	background-color:rgba(50, 50, 50, 0.8);
+	background-color:rgba(50, 50, 50, 0.85);
 	z-index:999;
 }
 
@@ -141,7 +139,8 @@ p, strong, button {
 	transition:background 0.2s;
 	padding:5px;
 	border-radius:5px;
-	background-color:rgba(100, 100, 100, 0.8);
+	background-color:rgba(120, 120, 120, 0.8);
+	float:right;
 }
 
 #close:hover {
@@ -150,7 +149,7 @@ p, strong, button {
 
 .popup {
 	text-align:center;
-	margin-top:85px;
+	margin-top:125px;
 }
 
 .popup h1, .popup h2 {
@@ -164,7 +163,7 @@ p, strong, button {
 
 #panel {
 	width:100%;
-	min-width:685px;
+	min-width:700px;
 	height:26px;
 	background-color:#CCC;
 	padding-top:2px;
@@ -196,12 +195,9 @@ p, strong, button {
 	background-color:#333;
 	width:100%;
 	min-width:1240px;
-	height:84px;
-	padding-top:2px;
-	padding-bottom:2px;
+	height:86px;
 	border-top:2px solid #000;
 	border-bottom:2px solid #000;
-	font-size:0px;
 }
 
 .node {
@@ -210,16 +206,12 @@ p, strong, button {
 	padding:1px;
 }
 
-.node.selected {
-	background-color:#8AF;
-}
-
-.node:hover:not(.disabled) {
+.node:hover:not(.disabled), .node.selected {
 	background-color:#8AF;
 }
 
 .node:active:not(.disabled), .node.activated:not(.disabled) {
-	background-color:#CCF;
+	background-color:#BBF;
 }
 
 .button {
@@ -228,11 +220,7 @@ p, strong, button {
 	border-radius:2px;
 }
 
-.button.selected {
-	background-color:#AAA;
-}
-
-.button:hover:not(.disabled) {
+.button:hover:not(.disabled), .button.selected {
 	background-color:#AAA;
 }
 

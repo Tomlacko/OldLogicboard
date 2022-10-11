@@ -1,16 +1,16 @@
 <!DOCTYPE html>
 <html>
 	<head>
-		<title>Logic Board Project</title>
+		<title>Logic Board</title>
 		<script type="text/javascript" src="../jquery-min-1.7.js"></script>
 		<script type="text/javascript" src="../clipboard-min-1.5.8.js"></script>
 		<script type="text/javascript" src="logicboard.js"></script>
 		<link rel="stylesheet" type="text/css" href="logicboard.css"/>
 		<meta http-equiv="content-type" content="text/html; charset=UTF-8" />
 	</head>
-	<body>
+	<body style="overflow:hidden;">
 		<div id="overlay" class="hidden">
-			<img src="icons/close.png" id="close" title="EXIT" />
+			<img src="icons/close.png" id="close" title="Close" />
 			
 			<div id="popup_save" class="popup hidden">
 				<h1>Copy this:</h1>
@@ -22,11 +22,11 @@
 			
 			<div id="popup_load" class="popup hidden">
 				<h1>Open project:</h1>
+				<input type="file" id="inputFile" accept=".lgb" style="display:none;">
 				<label for="inputFile" id="labelFile">Choose file...</label>
 				<p style="margin-top:50px;">or paste in data manually:</p>
 				<input type="textArea" id="pasteImport" >
 				<input type="button" id="pasteButton" value="LOAD" style="padding:2px; cursor:pointer; margin-left:5px;">
-				<input type="file" id="inputFile" accept=".lgb">
 			</div>
 			
 			<div id="popup_download" class="popup hidden">
@@ -41,7 +41,7 @@
 				<p id="speedSetting" style="display:inline-block;">Ticks per second: 100</p>
 				<input type="button" value="Change" id="speed" style="padding:2px; cursor:pointer; margin-left:8px;">
 				<br />
-				<p style="display:inline-block;">Advanced Info</p>
+				<p style="display:inline-block; margin-top:8px;">Advanced Info</p>
 				<div id="debugSlider" class="slider"><div></div></div>
 			</div>
 			
