@@ -141,17 +141,20 @@ $(document).ready(function() {
 	var canvasY = 0;
 	var dragLastX = 0;
 	var	dragLastY = 0;
+	var startClickX = 0;
+	var startClickY = 0;
+	var globalX = 0;
+	var globalY = 0;
 	var dragId = 0;
 	var holdingClick = false;
 	var lineStart = false;
 	var lineLast = false;
-	var globalX = midX;
-	var globalY = midY;
 	
 	var nodes = [];
 	var nNodes = {nText:0, nSwitch:0, nButton:0, nSource:0, nOr:0, nAnd:0, nNot:0, nDelay:0, nOutput:0, nLine:0};
 	var lines = [];
 	var tickSpeed = 10;
+	var mouseDelay = 10;
 	var selected = "s";
 	var state = "edit";
 	var TimeoutID = 0;
@@ -201,7 +204,7 @@ $(document).ready(function() {
 	$("#close").on("mousedown", function() {
 		$("#information").scrollTop(0);
 		$(".popup, #overlay, #copyDone").addClass("hidden");
-		$("input").blur();
+		$("input").blur();//does not work
 	});
 	
 	//show settings
@@ -333,15 +336,16 @@ $(document).ready(function() {
 		}
 		else {
 			$("#debugSlider").addClass("activated");
+			$("#debug").html("mouseX="+globalX+", mouseY="+globalY+"<br/>gridX="+realX+", gridY="+realY+"<br/>moveX="+canvasX+", moveY="+canvasY+", zoom: "+zoom+"<br/>nodes: "+nodes.length+", lines: "+lines.length);
 			$("#debug").removeClass("hidden");
 		}
 	});
 	
 	//TOOLBAR - Select item
-	$(".node, #pan, #delete, #edit, #replace, #select").on("click", function() {
+	$(".node, #delete, #edit, #replace, #select").on("click", function() {
 		if(state==="edit") {
 			selected = $(this).attr("id");
-			$(".node, #pan, #delete, #edit, #replace, #select").removeClass("selected");
+			$(".node, #delete, #edit, #replace, #select").removeClass("selected");
 			$(this).addClass("selected");
 		}
 	});
@@ -398,6 +402,8 @@ $(document).ready(function() {
 			canvasY-=midY/zoom;
 			ctx.scale(zoomSpeed,zoomSpeed);
 			ctx.translate(canvasX, canvasY);
+			panLastX=globalX/zoom;
+			panLastY=globalY/zoom;
 			$("#unzoom").removeClass("disabled");
 			if(!(zoom<maxZoom)) $("#zoom").addClass("disabled");
 		}
@@ -412,9 +418,39 @@ $(document).ready(function() {
 			ctx.scale(1/zoomSpeed,1/zoomSpeed);
 			ctx.translate(canvasX, canvasY);
 			zoom=zoom/zoomSpeed;
+			panLastX=globalX/zoom;
+			panLastY=globalY/zoom;
 			$("#zoom").removeClass("disabled");
 			if(!(zoom>minZoom)) $("#unzoom").addClass("disabled");
 		}
+	};
+	
+	var centeredZoom = function(scrollAmount) {
+		var canX=globalX/zoom;
+		var canY=globalY/zoom;
+		var adjustX = midX/zoom;
+		var adjustY = midY/zoom;
+		canvasX=canvasX-(canX-adjustX);
+		canvasY=canvasY-(canY-adjustY);
+		ctx.translate(-(canX-adjustX), -(canY-adjustY));
+		canX=canX*zoom;
+		canY=canY*zoom;
+		if(scrollAmount > 0) {
+			zoomF();
+		}
+		else{
+			unzoomF();
+		}
+		canX=canX/zoom;
+		canY=canY/zoom;
+		adjustX = midX/zoom;
+		adjustY = midY/zoom;
+		canvasX=canvasX+(canX-adjustX);
+		canvasY=canvasY+(canY-adjustY);
+		ctx.translate(canX-adjustX, canY-adjustY);
+		panLastX=globalX/zoom;
+		panLastY=globalY/zoom;
+		redrawAll();
 	};
 	
 	//move UP canvas button
@@ -443,13 +479,6 @@ $(document).ready(function() {
 		canvasX-=64/zoom;
 		ctx.translate(-64/zoom, 0);
 		redrawAll();
-	});
-	
-	//TOOLBAR - Debug Coordinates
-	$("#canvas").on("mousemove.debug", function(event) {
-		var canX2=globalX/zoom-canvasX;
-		var canY2=globalY/zoom-canvasY;
-		$("#debug").html("mouseX="+globalX+", mouseY="+globalY+"<br/>gridX="+canX2+", gridY="+canY2+"<br/>moveX="+canvasX+", moveY="+canvasY+", zoom="+zoom);
 	});
 	
 	//LOAD PROJECT
@@ -499,17 +528,23 @@ $(document).ready(function() {
 		var rect = canvas.getBoundingClientRect();
 		globalX = event.clientX - rect.left;
 		globalY = event.clientY - rect.top;
+		realX = (globalX/zoom)-canvasX;
+		realY = (globalY/zoom)-canvasY;
+		$("#debug").html("mouseX="+globalX+", mouseY="+globalY+"<br/>gridX="+realX+", gridY="+realY+"<br/>moveX="+canvasX+", moveY="+canvasY+", zoom: "+zoom+"<br/>nodes: "+nodes.length+", lines: "+lines.length);
 	});
 	
 	//KEYDOWN on canvas
 	$(document).on("keydown", function(key) {
-		//82=r, 17=ctrl, 70=f, 16=shift, 46=delete, 109=-, 107=+, 69=e, 81=q
+		//82=r, 17=ctrl, 70=f, 16=shift, 46=delete, 27=ESC, 32=Space, 109=-, 107=+, 69=e, 81=q
 		//w=87 a=65 s=83 d=68  -  up=38 left=37 down=40 right=39
-		if(!$("#overlay").hasClass("hidden")) return;
+		if(!$("#overlay").hasClass("hidden")) {
+			if(parseInt(key.which,10)===27 && !$("#overlay").hasClass("hidden")) $("#close").trigger("mousedown");
+			return;
+		}
 		var keyID = parseInt(key.which,10);
-		var canX=(globalX/zoom)-canvasX;
-		var canY=(globalY/zoom)-canvasY;
-		if($("#canvas:hover").length != 0) var obj = getClickedNode(canX, canY);
+		var canX=realX;
+		var canY=realY;
+		if($("#canvas:hover").length!=0) var obj = getClickedNode(canX, canY);
 		else var obj=false;
 		//KEY R - align to grid
 		if(keyID===82 && state==="edit" && obj!==false) {
@@ -540,7 +575,7 @@ $(document).ready(function() {
 			if(nodes[lineStart].s==="c") drawLine(nodes[lineStart].x1, nodes[lineStart].y1, canX, canY, defaultOutline, defaultLine);
 			else drawLine(getMiddleX(lineStart), getMiddleY(lineStart), canX, canY, defaultOutline, defaultLine);
 		}//KEY DELETE - delete object
-		else if((keyID===46 || keyID===81) && state==="edit" && !holdingClick) {
+		else if((keyID===46 || keyID===81) && state==="edit" && !holdingClick && lineStart===false) {
 			if(obj!==false) {
 				deleteObj(obj);
 				unsaved=true;
@@ -577,18 +612,43 @@ $(document).ready(function() {
 			redrawAll();
 		}//KEY - UNZOOM
 		else if(keyID===109) {
-			unzoomF();
-			redrawAll();
+			if($("#canvas:hover").length!=0) centeredZoom(-1);
+			else {
+				unzoomF();
+				redrawAll();
+			}
 		}//KEY + ZOOM
-		else if(keyID===107 && zoom<maxZoom) {
-			zoomF();
-			redrawAll();
+		else if(keyID===107) {
+			if($("#canvas:hover").length!=0) centeredZoom(1);
+			else {
+				zoomF();
+				redrawAll();
+			}
 		}//KEY E - Edit
 		else if(keyID===69/*LOL*/ && obj!==false  && state==="edit" && !holdingClick) {
 			if(editObj(obj)) {
 				unsaved=true;
 				redrawAll();
 			}
+		}//KEY SPACE - Start/Stop Simulation
+		else if(keyID===32 && !holdingClick) {
+			if(state==="edit") {
+				if(lineStart!==false) {
+					lineStart=false;
+					$("#canvas").off("mousemove.line");
+				}
+				startSimulation();
+			}
+			else stopSimulation();
+			redrawAll();
+		}//KEY Esc - Cancel
+		else if(keyID===27) {
+			if(lineStart!==false) {
+				lineStart=false;
+				$("#canvas").off("mousemove.line");
+				redrawAll();
+			}
+			else if(state!=="edit" && !holdingClick) stopSimulation();
 		}
 	});
 	
@@ -597,56 +657,75 @@ $(document).ready(function() {
 		var scrollAmount = (/Firefox/i.test(navigator.userAgent))? (e.originalEvent.detail*-1) : (e.originalEvent.wheelDelta/120);
 		if((scrollAmount > 0 && zoom >= maxZoom) || (!(scrollAmount > 0) && zoom <= minZoom)) return;
 		e.preventDefault();
-		var canX=globalX/zoom;
-		var canY=globalY/zoom;
-		panLastX = midX/zoom;
-		panLastY = midY/zoom;
-		canvasX=canvasX-(canX-panLastX);
-		canvasY=canvasY-(canY-panLastY);
-		ctx.translate(-(canX-panLastX), -(canY-panLastY));
-		canX=canX*zoom;
-		canY=canY*zoom;
-		if(scrollAmount > 0) {//ZOOM+
-			zoomF();
-		}
-		else{//ZOOM- / UNZOOM
-			unzoomF();
-		}
-		canX=canX/zoom;
-		canY=canY/zoom;
-		panLastX = midX/zoom;
-		panLastY = midY/zoom;
-		canvasX=canvasX+(canX-panLastX);
-		canvasY=canvasY+(canY-panLastY);
-		ctx.translate(canX-panLastX, canY-panLastY);
-		redrawAll();
+		centeredZoom(scrollAmount);
 	});
 	
-	//MAIN CLICK EVENT - mousedown canvas
-	$("#canvas").on("mousedown", function(event) {
-		if(event.which===1) {
-			event.preventDefault();
-			var canX=globalX/zoom;
-			var canY=globalY/zoom;
-			panLastX = canX;
-			panLastY = canY;
-			canX-=canvasX;
-			canY-=canvasY;
-			dragLastX = canX;
-			dragLastY = canY;
-			holdingClick = true;
-			clickOn(canX, canY);
-		}
-	});
+	//MAIN CLICK EVENT - click on canvas
+	var mainClickEnd = function() {
+		$("#canvas").on("mouseup.main", function(e) {
+			if(e.which===1) {
+				$("#canvas").off("mousemove.start");
+				$("#canvas").off("mouseup.main");
+				setTimeout(clickResetDelay, mouseDelay);
+				clickOn(realX, realY);
+			}
+		});
+	};
+	var mainMoveStart = function() {
+		$("#canvas").on("mousemove.start", function() {
+			if(Math.abs(startClickX-globalX)>5 || Math.abs(startClickY-globalY)>5) {
+				$("#canvas").off("mouseup.main");
+				$("#canvas").off("mousemove.start");
+				mainAltEnd();
+				var clickResult = getClickedNode(realX, realY);
+				if(selected==="line" && clickResult!==false && lineStart===false) {
+					dragObj(clickResult);
+				}
+				else panActivate();
+			}
+		});
+	};
+	var mainAltEnd = function() {
+		$(document).on("mouseup.end", function(e) {
+			if(e.which===1) {
+				$(document).off("mouseup.end");
+				setTimeout(clickResetDelay, mouseDelay);
+			}
+		});
+	};
+	var mainClickStart = function() {
+		$("#canvas").on("mousedown.start", function(e) {
+			if(e.which===1) {
+				$("#canvas").off("mousedown.start");
+				var canX=realX;
+				var canY=realY;
+				holdingClick = true;
+				startClickX = globalX;
+				startClickY = globalY;
+				if(state!=="edit" || (getClickedNode(canX, canY)!==false && !["delete", "edit", "replace", "select", "line"].includes(selected))) {
+					mainAltEnd();
+					clickOn(canX, canY);
+				}
+				else {
+					mainMoveStart();
+					mainClickEnd();
+				}
+			}
+		});
+	};
+	mainClickStart();
+	var clickResetDelay = function() {
+		mainClickStart();
+	};
 	
 	//MOUSE Drag Object - mousemove
 	var nodeMoveActivate = function() {
+		dragLastX = realX;
+		dragLastY = realY;
 		$("#canvas").on("mousemove.drag", function(event) {
 			event.preventDefault();
-			var canX=globalX/zoom;
-			var canY=globalY/zoom;
-			canX-=canvasX;
-			canY-=canvasY;
+			var canX=realX;
+			var canY=realY;
 			var moveX = canX-dragLastX;
 			var moveY = canY-dragLastY;
 			dragLastX = canX;
@@ -662,26 +741,26 @@ $(document).ready(function() {
 	};
 	
 	//MOUSE disable hold - mouseup
-	$(document).on("mouseup", function(event) {
-		$("#canvas").off("mousemove.drag");
-		$("#canvas").off("mousemove.pan");
-		holdingClick = false;
+	$(document).on("mouseup", function(e) {
+		if(e.which===1) {
+			$("#canvas").off("mousemove.drag");
+			$("#canvas").off("mousemove.pan");
+			holdingClick = false;
+		}
 	});
 	
 	//MOUSE create line - mousemove
 	var lineStartActivate = function() {
 		$("#canvas").on("mousemove.line", function(event) {
 			event.preventDefault();
-			var canX=(globalX/zoom)-canvasX;
-			var canY=(globalY/zoom)-canvasY;
 			redrawAll();
-			if(nodes[lineStart].s==="c") drawLine(nodes[lineStart].x1, nodes[lineStart].y1, canX, canY, defaultOutline, defaultLine);
-			else drawLine(getMiddleX(lineStart), getMiddleY(lineStart), canX, canY, defaultOutline, defaultLine);
 		});
 	};
 	
 	//MOUSE pan / translate canvas - mousemove
 	var panActivate = function() {
+		panLastX=globalX/zoom;
+		panLastY=globalY/zoom;
 		$("#canvas").on("mousemove.pan", function(event) {
 			event.preventDefault();
 			var canX=globalX/zoom;
@@ -715,8 +794,13 @@ $(document).ready(function() {
 		$("#StartControls").addClass("hidden");
 		$("#StopControls").removeClass("hidden");
 		$(".node, #EditControls .button").addClass("disabled");
+		if(lineStart!==false) {
+			lineStart=false;
+			$("#canvas").off("mousemove.line");
+		}
 		state="running";
 		TimeoutID = setTimeout(Tick, tickSpeed);
+		redrawAll();
 	};
 	
 	//MAIN Tick loop
@@ -855,7 +939,6 @@ $(document).ready(function() {
 			default: return false;
 		}
 	};
-	//TYPES:   s=switch, b=button, p=pulser, q=source, o=or, a=and, n=not, d=delay, t=toggle, m=monostable, r=random, l=output(lamp), w=text
 	
 	//get object middle X
 	var getMiddleX = function(node) {
@@ -943,6 +1026,20 @@ $(document).ready(function() {
 		return false;
 	};
 	
+	//DRAG object
+	var dragObj = function(id) {
+		if(id<nodes.length-1) {
+			var obj = nodes[id];
+			nodes.splice(id, 1);
+			nodes.push(obj);
+			reorganize(id);
+		}
+		dragId=nodes.length-1;
+		redrawAll();
+		nodeMoveActivate();
+		unsaved=true;
+	};
+	
 	//MAIN RENDER EVERYTHING - Re-Draw All
 	var redrawAll = function() {
 		clear();
@@ -984,9 +1081,11 @@ $(document).ready(function() {
 					break;
 			}
 		}
-		//DEBUG
-		//drawRect(0, 0, 100, 100, defaultOutline, noOutline, 0); //debug 0, 0
-		//drawCircle(midX, midY, 20, defaultOutline, noOutline, 0); //debug midX, midY
+		if(lineStart!==false) {
+			if(nodes[lineStart].s==="c") drawLine(nodes[lineStart].x1, nodes[lineStart].y1, realX, realY, defaultOutline, defaultLine);
+			else drawLine(getMiddleX(lineStart), getMiddleY(lineStart), realX, realY, defaultOutline, defaultLine);
+		}
+		$("#debug").html("mouseX="+globalX+", mouseY="+globalY+"<br/>gridX="+realX+", gridY="+realY+"<br/>moveX="+canvasX+", moveY="+canvasY+", zoom: "+zoom+"<br/>nodes: "+nodes.length+", lines: "+lines.length);
 	};
 	
 	//GET CLICKED OBJECT ID
@@ -1015,27 +1114,35 @@ $(document).ready(function() {
 		return false;
 	};
 	
-	//MAIN - HANDLE ALL CLICK EVENTS - PLACE OBJECT - EDIT, DELETE, LINE, PAN...
+	//MAIN - CANVAS CLICK EVENTS - PLACE OBJECT, EDIT, DELETE, LINE, PAN...
 	var clickOn = function(x, y) {
 		var clickResult = getClickedNode(x, y);
 		var clickResultLine = false;
-		if(selected==="pan" || state==="paused" || (state==="running" && (clickResult===false || (nodes[clickResult].t!=="b" && nodes[clickResult].t!=="s")))) {
+		if(state==="paused" || (state==="running" && (clickResult===false || (nodes[clickResult].t!=="b" && nodes[clickResult].t!=="s")))) {
 			panActivate();
 		}
-		else if(state==="edit" && selected!=="pan") {
+		else if(state==="edit") {
 			var clickResultLine = getClickedLine(x, y);
-			if(!["line", "edit", "delete"].includes(selected)) {
-				if(clickResult!==false) {//ACTIVATE DRAG OBJECT
-					if(clickResult<nodes.length-1) {
-						var obj = nodes[clickResult];
-						nodes.splice(clickResult, 1);
-						nodes.push(obj);
-						reorganize(clickResult);
+			if(selected==="line") {//LINE
+				if(lineStart===false && clickResult!==false) {//START LINE
+					if(["s", "b", "n", "q", "d", "o", "a", "p", "r", "t", "m"].includes(nodes[clickResult].t)) {
+						lineStart = clickResult;
+						lineLast = lineStart;
+						lineStartActivate();
 					}
-					dragId=nodes.length-1;
-					redrawAll();
-					nodeMoveActivate();
-					unsaved=true;
+				}
+				else if(lineStart!==false) {//END/CREATE LINE
+					if(!(clickResult===false || clickResult===lineStart) && ["o", "a", "n", "d", "l", "r", "t", "m"].includes(nodes[clickResult].t) && !findDuplicateLine(clickResult)) {
+						lines.push({a:lineStart, b:clickResult});
+						unsaved=true;
+					}
+					lineStart=false;
+					$("#canvas").off("mousemove.line");
+				}
+			}
+			else if(!["select", "edit", "delete", "replace"].includes(selected)) {
+				if(clickResult!==false) {//ACTIVATE DRAG OBJECT
+					dragObj(clickResult);
 				}
 				else {//CREATE NEW OBJECT
 					switch(selected) {
@@ -1089,8 +1196,6 @@ $(document).ready(function() {
 							break;
 					}
 					unsaved=true;
-					dragId=nodes.length-1;
-					nodeMoveActivate();
 				}
 			}
 			else if(selected==="delete") {
@@ -1106,25 +1211,8 @@ $(document).ready(function() {
 			else if(selected==="edit" && clickResult!==false) {
 				if(editObj(clickResult)) unsaved=true;
 			}
-			else if(selected==="line") {//LINE
-				if(lineStart===false && clickResult!==false) {//START LINE
-					if(["s", "b", "n", "q", "d", "o", "a", "p", "r", "t", "m"].includes(nodes[clickResult].t)) {
-						lineStart = clickResult;
-						lineLast = lineStart;
-						lineStartActivate();
-					}
-				}
-				else if(lineStart!==false) {//END/CREATE LINE
-					if(!(clickResult===false || clickResult===lineStart) && ["o", "a", "n", "d", "l", "r", "t", "m"].includes(nodes[clickResult].t) && !findDuplicateLine(clickResult)) {
-						lines.push({a:lineStart, b:clickResult});
-						unsaved=true;
-					}
-					lineStart=false;
-					$("#canvas").off("mousemove.line");
-				}
-			}
 		}//CLICK BUTTON / SWITCH while running
-		else if(state==="running" && clickResult!==false && selected!=="pan") {
+		else if(state==="running" && clickResult!==false) {
 			if(nodes[clickResult].t==="b") nodes[clickResult].p=true;
 			else if(nodes[clickResult].t==="s") nodes[clickResult].p=!nodes[clickResult].p;
 		}
