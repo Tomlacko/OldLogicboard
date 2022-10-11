@@ -360,7 +360,4 @@ $(document).ready(function() {
 		else alert("Click action Error");
 		redrawAll();
 	};
-	
-	//Remove endora text
-	$("i").parent().parent().parent().remove();
 });
