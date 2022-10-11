@@ -109,6 +109,9 @@ $(document).ready(function() {
 	var dragId = 0;
 	var holdingClick = false;
 	var lineStart = false;
+	var lineLast = false;
+	var globalX = midX;
+	var globalY = midY;
 	
 	//LINE PARAMETERS: startID, endID
 	
@@ -124,8 +127,6 @@ $(document).ready(function() {
 	var nodes = [];
 	var nNodes = {nText:0, nSwitch:0, nButton:0, nSource:0, nOr:0, nAnd:0, nNot:0, nDelay:0, nOutput:0, nLine:0};
 	var lines = [];
-	//var nodeCount = 0;
-	//var lineCount = 0;
 	var tickSpeed = 10;
 	var selected = "switch";
 	var state = "edit";
@@ -150,7 +151,7 @@ $(document).ready(function() {
 	
 	/*-----------------------------------------------------------------------------------------------*/
 	
-	//debug
+	//TOOLBAR - Debug Coordinates
 	/*
 	$("#canvas").on("mousemove.debug", function(event) {
 		event.preventDefault();
@@ -163,43 +164,64 @@ $(document).ready(function() {
 	});
 	*/
 	
+	//DOWNLOAD Project file
 	$("#download").on("click", function() {
 		if(state!=="edit") stopSimulation();
 		filename = prompt("Enter the project's name if you want to download it:", "logicboard_project");
 		if(filename==false) return;
 		else if(filename.length>50) alert("The file name is too long!");
-		else if(filename!=="" && filename!=null) downloadProject(filename+".lgb", btoa(JSON.stringify([nodes, lines])));
+		else if(filename!=="" && filename!=null) downloadProject(filename+".lgb", btoa(JSON.stringify([nodes, lines, canvasX, canvasY, zoom])));
 	});
 	
+	//Display SAVE PROJECT string
 	$("#save").on("click", function() {
 		if(state!=="edit") stopSimulation();
-		prompt("Copy this text:", btoa(JSON.stringify([nodes, lines])));
+		prompt("Copy this text:", btoa(JSON.stringify([nodes, lines, canvasX, canvasY, zoom])));
 	});
 	
+	//LOAD PROJECT
 	$("#load").on("click", function() {
 		if(state!=="edit") stopSimulation();
 		loadProject = prompt("Enter project data:");
 		if(loadProject==="" || loadProject==null || loadProject==false) return;
 		var oldNodes = nodes;
 		var oldLines = lines;
+		var oldCanvasX = canvasX;
+		var oldCanvasY = canvasY;
+		var oldZoom = zoom;
 		try {
 			var loadArr = JSON.parse(atob(loadProject));
 			nodes=loadArr[0];
 			lines=loadArr[1];
 			ctx.setTransform(1, 0, 0, 1, 0, 0);
-			zoom = 1;
-			canvasX=nodes[0].x1+midX;
-			canvasY=nodes[0].y1+midY;
-			ctx.translate(canvasX, canvasY);
+			if(!loadArr.length>2) {
+				canvasX=0;
+				canvasY=0;
+				zoom=1;
+			}
+			else {
+				canvasX=loadArr[2];
+				canvasY=loadArr[3];
+				zoom=loadArr[4];
+				ctx.scale(zoom, zoom);
+				ctx.translate(canvasX, canvasY);
+			}
 			redrawAll();
 		}
 		catch(err) {
+			ctx.setTransform(1, 0, 0, 1, 0, 0);
 			nodes=oldNodes;
 			lines=oldLines;
+			canvasX=oldCanvasX;
+			canvasY=oldCanvasY;
+			zoom=oldZoom;
+			ctx.scale(zoom, zoom);
+			ctx.translate(canvasX, canvasY);
 			alert("Error:\n\n"+err.message);
 		}
 	});
 	
+	//TOOLBAR - Select / START
 	$("#SelectNode button").on("click", function() {
 		if(["text", "switch", "button", "source", "or", "and", "not", "delay", "line", "output", "edit", "delete", "start", "pan", "toggle", "random", "pulser", "monostable"].includes($(this).attr("id"))) {
 			selected = $(this).attr("id");
@@ -208,6 +230,7 @@ $(document).ready(function() {
 		else alert("Button Error");
 	});
 	
+	//TOOLBAR - STOP / Pause / Step
 	$("#StopControl button").on("click", function() {
 		if($(this).attr("id")==="stop") {
 			stopSimulation();
@@ -231,6 +254,7 @@ $(document).ready(function() {
 		else alert("Button Error");
 	});
 	
+	//STOP Simulation
 	var stopSimulation = function() {
 		clearTimeout(TimeoutID);
 		state="edit";
@@ -243,12 +267,62 @@ $(document).ready(function() {
 		redrawAll();
 	};
 	
+	//Change SPEED
 	$("#speed").on("click", function() {
 		var newSpeed = prompt("Simulation speed (Ticks per second): (Hz)", "100");
 		if(isNaN(parseFloat(newSpeed)) || parseFloat(newSpeed)<0.1 || parseFloat(newSpeed)>1000) alert("Invalid number!");
 		else tickSpeed=1000/parseFloat(newSpeed);
 	});
 	
+	//TRACK global MOUSE coordinates - mousemove
+	$("#canvas").on("mousemove.global", function(event) {
+		var rect = canvas.getBoundingClientRect();
+		globalX = event.clientX - rect.left;
+		globalY = event.clientY - rect.top;
+	});
+	
+	//KEYDOWN on canvas
+	$(document).on("keydown", function(key) {
+		//82=r, 17=ctrl
+		var keyID = parseInt(key.which,10);
+		var canX=(globalX/zoom)-canvasX;
+		var canY=(globalY/zoom)-canvasY;
+		if($('#canvas:hover').length != 0) var obj = getClickedNode(canX, canY);
+		else var obj=false;
+		
+		//KEY R - align to grid
+		if(keyID===82 && state==="edit") {
+			if(obj!==false) {
+				if(nodes[obj].shape!=="circle") {
+					var centerX=getMiddleX(obj);
+					var centerY=getMiddleY(obj);
+					var w=nodes[obj].x2-nodes[obj].x1;
+					var h=nodes[obj].y2-nodes[obj].y1;
+					var l=0;
+					if(nodes[obj].type!=="output") l=defaultLine+4;
+					centerX=Math.round(centerX/(w+l))*(w+l);
+					centerY=Math.round(centerY/(h+l))*(h+l);
+					nodes[obj].x1=centerX-w/2;
+					nodes[obj].x2=centerX+w/2;
+					nodes[obj].y1=centerY-h/2;
+					nodes[obj].y2=centerY+h/2;
+				}
+				else {
+					nodes[obj].x1=Math.round(nodes[obj].x1/(nodes[obj].r*2+defaultLine))*(nodes[obj].r*2+defaultLine);
+					nodes[obj].y1=Math.round(nodes[obj].y1/(nodes[obj].r*2+defaultLine))*(nodes[obj].r*2+defaultLine);
+				}
+			}
+			redrawAll();
+		}//KEY CTRL - quick new line
+		else if(keyID===17 && state==="edit" && !holdingClick && lineLast!==false && selected==="line" && lineStart===false) {
+			lineStart = lineLast;
+			lineStartActivate();
+			if(nodes[lineStart].shape==="circle") drawLine(nodes[lineStart].x1, nodes[lineStart].y1, canX, canY, defaultOutline, defaultLine);
+			else drawLine(getMiddleX(lineStart), getMiddleY(lineStart), canX, canY, defaultOutline, defaultLine);
+		}
+	});
+	
+	//TOOLBAR zoom+
 	/*
 	$("#zoom").on("click", function() {
 		ctx.translate(-canvasX, -canvasY);
@@ -261,6 +335,7 @@ $(document).ready(function() {
 		redrawAll();
 	});
 	
+	//TOOLBAR zoom- (unzoom)
 	$("#unzoom").on("click", function() {
 		ctx.translate(-canvasX, -canvasY);
 		canvasX+=midX/zoom;
@@ -273,14 +348,12 @@ $(document).ready(function() {
 	});
 	*/
 	
+	//MOUSE ZOOM ScrollWheel
 	$('#canvas').bind('mousewheel', function(e){
 		if((e.originalEvent.wheelDelta/120 > 0 && zoom >= maxZoom) || (!(e.originalEvent.wheelDelta/120 > 0) && zoom <= minZoom)) return;
 		event.preventDefault();
-		var rect = canvas.getBoundingClientRect();
-		var canX = event.clientX - rect.left;
-		var canY = event.clientY - rect.top;
-		canX=canX/zoom;
-		canY=canY/zoom;
+		var canX=globalX/zoom;
+		var canY=globalY/zoom;
 		panLastX = midX/zoom;
 		panLastY = midY/zoom;
 		canvasX=canvasX-(canX-panLastX);
@@ -288,7 +361,6 @@ $(document).ready(function() {
 		ctx.translate(-(canX-panLastX), -(canY-panLastY));
 		canX=canX*zoom;
 		canY=canY*zoom;
-		
 		if(e.originalEvent.wheelDelta/120 > 0) {
 			ctx.translate(-canvasX, -canvasY);
 			zoom=zoom*zoomSpeed;
@@ -307,7 +379,6 @@ $(document).ready(function() {
 			//ctx.translate(midX/zoom, midY/zoom);
 			zoom=zoom/zoomSpeed;
 		}
-		
 		canX=canX/zoom;
 		canY=canY/zoom;
 		panLastX = midX/zoom;
@@ -318,14 +389,12 @@ $(document).ready(function() {
 		redrawAll();
 	});
 	
+	//MAIN CLICK EVENT - mousedown canvas
 	$("#canvas").on("mousedown", function(event) {
 		if(event.which===1) {
 			event.preventDefault();
-			var rect = canvas.getBoundingClientRect();
-			var canX = event.clientX - rect.left;
-			var canY = event.clientY - rect.top;
-			canX=canX/zoom;
-			canY=canY/zoom;
+			var canX=globalX/zoom;
+			var canY=globalY/zoom;
 			panLastX = canX;
 			panLastY = canY;
 			canX-=canvasX;
@@ -337,14 +406,12 @@ $(document).ready(function() {
 		}
 	});
 	
+	//MOUSE Drag Object - mousemove
 	var nodeMoveActivate = function() {
 		$("#canvas").on("mousemove.drag", function(event) {
 			event.preventDefault();
-			var rect = canvas.getBoundingClientRect();
-			var canX = event.clientX - rect.left;
-			var canY = event.clientY - rect.top;
-			canX=canX/zoom;
-			canY=canY/zoom;
+			var canX=globalX/zoom;
+			var canY=globalY/zoom;
 			canX-=canvasX;
 			canY-=canvasY;
 			var moveX = canX-dragLastX;
@@ -361,36 +428,31 @@ $(document).ready(function() {
 		});
 	};
 	
+	//MOUSE disable hold - mouseup
 	$(document).on("mouseup", function(event) {
 		$("#canvas").off("mousemove.drag");
 		$("#canvas").off("mousemove.pan");
 		holdingClick = false;
 	});
 	
+	//MOUSE create line - mousemove
 	var lineStartActivate = function() {
 		$("#canvas").on("mousemove.line", function(event) {
 			event.preventDefault();
-			var rect = canvas.getBoundingClientRect();
-			var canX = event.clientX - rect.left;
-			var canY = event.clientY - rect.top;
-			canX=canX/zoom;
-			canY=canY/zoom;
-			canX-=canvasX;
-			canY-=canvasY;
+			var canX=(globalX/zoom)-canvasX;
+			var canY=(globalY/zoom)-canvasY;
 			redrawAll();
 			if(nodes[lineStart].shape==="circle") drawLine(nodes[lineStart].x1, nodes[lineStart].y1, canX, canY, defaultOutline, defaultLine);
 			else drawLine(getMiddleX(lineStart), getMiddleY(lineStart), canX, canY, defaultOutline, defaultLine);
 		});
 	};
 	
+	//MOUSE pan / translate canvas - mousemove
 	var panActivate = function() {
 		$("#canvas").on("mousemove.pan", function(event) {
 			event.preventDefault();
-			var rect = canvas.getBoundingClientRect();
-			var canX = event.clientX - rect.left;
-			var canY = event.clientY - rect.top;
-			canX=canX/zoom;
-			canY=canY/zoom;
+			var canX=globalX/zoom;
+			var canY=globalY/zoom;
 			canvasX=canvasX+(canX-panLastX);
 			canvasY=canvasY+(canY-panLastY);
 			ctx.translate(canX-panLastX, canY-panLastY);
@@ -400,6 +462,7 @@ $(document).ready(function() {
 		});
 	};
 	
+	//START SIMULATION
 	var startSimulation = function() {
 		$("#SelectNode").addClass("hidden");
 		$("#StopControl").removeClass("hidden");
@@ -407,6 +470,7 @@ $(document).ready(function() {
 		TimeoutID = setTimeout(Tick, tickSpeed);
 	};
 	
+	//MAIN Tick loop
 	var Tick = function() {
 		TimeoutID = setTimeout(Tick, tickSpeed);
 		for(i=0; i<lines.length; i++) {
@@ -424,7 +488,7 @@ $(document).ready(function() {
 					nodes[i].powered = testOr(i);
 					break;
 				case "not":
-					nodes[i].powered = testNot(i);
+					nodes[i].powered = !testOr(i);
 					break;
 				case "delay":
 					var isPowered = testOr(i);
@@ -477,6 +541,7 @@ $(document).ready(function() {
 		redrawAll();
 	};
 	
+	//get AND connection
 	var testAnd = function(id) {
 		var result = false;
 		for(j=0; j<lines.length; j++) {
@@ -489,6 +554,7 @@ $(document).ready(function() {
 		return result;
 	}
 	
+	//get OR connection
 	var testOr = function(id) {
 		for(j=0; j<lines.length; j++) {
 			if(lines[j].endID===id && lines[j].powered) return true;
@@ -496,13 +562,7 @@ $(document).ready(function() {
 		return false;
 	}
 	
-	var testNot = function(id) {
-		for(j=0; j<lines.length; j++) {
-			if(lines[j].endID===id && lines[j].powered) return false;
-		}
-		return true;
-	}
-	
+	//RESET Objects after simulation STOP
 	var resetPower = function() {
 		for(j=0; j<nodes.length; j++) {
 			if(nodes[j].startPowered!=undefined) nodes[j].powered = nodes[j].startPowered;
@@ -515,26 +575,31 @@ $(document).ready(function() {
 		}
 	};
 	
+	//get color of object depending on power
 	var powerColor = function(node) {
 		if(nodes[node].powered) return defaultPower;
 		else return defaultColor;
 	};
 	
+	//get color of line depending on power
 	var powerColorLine = function(line) {
 		if(lines[line].powered) return defaultPower;
 		else return defaultOutline;
 	};
 	
+	//get object middle X
 	var getMiddleX = function(node) {
 		if(nodes[node].shape==="circle") return nodes[node].x1;
 		else return nodes[node].x1+((nodes[node].x2-nodes[node].x1)/2);
 	};
 	
+	//get object middle Y
 	var getMiddleY = function(node) {
 		if(nodes[node].shape==="circle") return nodes[node].y1;
 		else return nodes[node].y1+((nodes[node].y2-nodes[node].y1)/2);
 	};
 	
+	//Find duplicate line - prevent creating multiple identical lines
 	var findDuplicateLine = function(id) {
 		for(j=0; j<lines.length; j++) {
 			if(lines[j].startID===lineStart && lines[j].endID===id) return true;
@@ -542,6 +607,7 @@ $(document).ready(function() {
 		return false;
 	};
 	
+	//SHIFT / recalculate IDs after object delete/drag
 	var reorganize = function(pos) {
 		var uptop = [];
 		for(j=0; j<lines.length; j++) {
@@ -554,8 +620,13 @@ $(document).ready(function() {
 			if(uptop[j][1]===1) lines[uptop[j][0]].startID=nodes.length-1;
 			if(uptop[j][1]===2) lines[uptop[j][0]].endID=nodes.length-1;
 		}
+		if(lineLast!==false) {
+			if(lineLast>pos) lineLast--;
+			else if(lineLast===pos) lineLast=nodes.length-1;
+		}
 	};
 	
+	//MAIN RENDER EVERYTHING - Re-Draw All
 	var redrawAll = function() {
 		clear();
 		for(i=0; i<lines.length; i++) {
@@ -596,10 +667,12 @@ $(document).ready(function() {
 					break;
 			}
 		}
+		//DEBUG
 		//drawRect(0, 0, 100, 100, defaultOutline, noOutline, 0); //debug 0, 0
 		//drawCircle(midX, midY, 20, defaultOutline, noOutline, 0); //debug midX, midY
 	};
 	
+	//GET CLICKED OBJECT ID
 	var getClickedNode = function(x, y) {
 		if(nodes.length===0) return false;
 		for(i = nodes.length-1; i>=0; i--) {
@@ -616,6 +689,7 @@ $(document).ready(function() {
 		return false;
 	};
 	
+	//GET CLICKED LINE ID
 	var getClickedLine = function(x, y) {
 		if(lines.length===0) return false;
 		for(i = lines.length-1; i>=0; i--) {
@@ -624,6 +698,7 @@ $(document).ready(function() {
 		return false;
 	};
 	
+	//MAIN - HANDLE ALL CLICK EVENTS - PLACE OBJECT - EDIT, DELETE, LINE, PAN...
 	var clickOn = function(x, y) {
 		var clickResult = getClickedNode(x, y);
 		var clickResultLine = false;
@@ -633,7 +708,7 @@ $(document).ready(function() {
 		else if(state==="edit" && selected!=="pan") {
 			var clickResultLine = getClickedLine(x, y);
 			if(!["line", "start", "edit", "delete"].includes(selected)) {
-				if(clickResult!==false) {
+				if(clickResult!==false) {//ACTIVATE DRAG OBJECT
 					if(clickResult<nodes.length-1) {
 						var obj = nodes[clickResult];
 						nodes.splice(clickResult, 1);
@@ -644,49 +719,49 @@ $(document).ready(function() {
 					redrawAll();
 					nodeMoveActivate();
 				}
-				else {
+				else {//CREATE NEW OBJECT
 					switch(selected) {
-						case "switch": case "button":
+						case "switch": case "button"://SWITCH - BUTTON
 							nodes.push({shape:"circle", type:selected, name:capitalize(selected), r:defaultRadius, powered:false, x1:x, y1:y});
 							break;
-						case "or": case "and":
+						case "or": case "and"://AND - OR
 							nodes.push({shape:"rect", type:selected, powered:false, x1:x-(defaultWidth/2)+10, y1:y-(defaultHeight/2), x2:x+(defaultWidth/2)-10, y2:y+(defaultHeight/2)});
 							break;
-						case "delay":
+						case "delay"://DELAY
 							var delay=prompt("Set delay: (ticks)", lastDelay);
-							if(isNaN(parseInt(delay)) || parseInt(delay)<1) alert("Invalid number!");
+							if(isNaN(parseFloat(delay)) || parseFloat(delay)<1) alert("Invalid number!");
 							else {
 								nodes.push({shape:"oval", type:"delay", powered:false, delay:Math.round(parseFloat(delay)), countdown:Math.round(parseFloat(delay)), x1:x-(defaultWidth/2), y1:y-(defaultHeight/2), x2:x+(defaultWidth/2), y2:y+(defaultHeight/2)});
 								lastDelay = Math.round(parseFloat(delay));
 							}
 							break;
-						case "not":
+						case "not"://NOT
 							nodes.push({shape:"circle", type:"not", r:defaultRadius, powered:true, startPowered:true, x1:x, y1:y});
 							break;
-						case "output":
+						case "output"://OUTPUT LAMP
 							nodes.push({shape:"rect", type:"output", powered:false, name:"", x1:(Math.round(x/defaultHeight)*defaultHeight)-(defaultHeight/2), y1:(Math.round(y/defaultHeight)*defaultHeight)-(defaultHeight/2), x2:(Math.round(x/defaultHeight)*defaultHeight)+(defaultHeight/2), y2:(Math.round(y/defaultHeight)*defaultHeight)+(defaultHeight/2)});
 							break;
-						case "source":
+						case "source"://SOURCE
 							nodes.push({shape:"circle", type:"source", r:defaultRadius, powered:true, x1:x, y1:y});
 							break;
-						case "pulser":
+						case "pulser"://PULSER
 							var delay=prompt("Set delay: (ticks)", lastPulser);
-							if(isNaN(parseInt(delay)) || parseInt(delay)<1) alert("Invalid number!");
+							if(isNaN(parseFloat(delay)) || parseFloat(delay)<1) alert("Invalid number!");
 							else {
 								nodes.push({shape:"circle", type:"pulser", r:defaultRadius, powered:false, x1:x, y1:y, delay:Math.round(parseFloat(delay)), countdown:Math.round(parseFloat(delay))});
 								lastPulser = Math.round(parseFloat(delay));
 							}
 							break;
-						case "random":
+						case "random"://RANDOM
 							nodes.push({shape:"circle", type:"random", r:defaultRadius+10, powered:false, x1:x, y1:y, fired:false});
 							break;
-						case "toggle":
+						case "toggle"://TOGGLE
 							nodes.push({shape:"rect", type:"toggle", powered:false, startPowered:false, fired:false, x1:x-(defaultWidth/2), y1:y-(defaultWidth/2), x2:x+(defaultWidth/2), y2:y+(defaultWidth/2)});
 							break;
-						case "monostable":
+						case "monostable"://MONOSTABLE
 							nodes.push({shape:"rect", type:"monostable", powered:false, fired:false, x1:x-(defaultWidth/2)-16, y1:y-(defaultHeight/2), x2:x+(defaultWidth/2)+16, y2:y+(defaultHeight/2)});
 							break;
-						case "text":
+						case "text"://TEXT
 							var text = prompt("Enter text:");
 							ctx.font = textSize+"px Arial";
 							if(text!=undefined && text!=="" && text!==" ") nodes.push({shape:"rect", type:"text", name:text, x1:x-(ctx.measureText(text).width/2), y1:y-(textSize/2), x2:x+(ctx.measureText(text).width/2), y2:y+(textSize/2)});
@@ -695,7 +770,7 @@ $(document).ready(function() {
 				}
 			}
 			else if(selected==="delete") {
-				if(clickResult!==false) {
+				if(clickResult!==false) {//DELETE OBJECT
 					for(j = lines.length-1; j>=0; j--) {
 						if(lines[j].startID===clickResult || lines[j].endID===clickResult) lines.splice(j, 1);
 					}
@@ -705,43 +780,50 @@ $(document).ready(function() {
 					}
 					else nodes.splice(clickResult, 1);
 				}
-				else if(clickResultLine!==false) {
+				else if(clickResultLine!==false) {//DELETE LINE
 					lines.splice(clickResultLine, 1);
 				}
-			}
+			}//EDIT OBJECT PROPERTIES
 			else if(selected==="edit" && clickResult!==false) {
 				if(["delay", "button", "switch", "text", "output", "not", "pulser", "toggle"].includes(nodes[clickResult].type)) {
 					switch(nodes[clickResult].type) {
-						case "delay": case "pulser":
+						case "delay": case "pulser"://DELAY - PULSER
 							var delay=prompt("Set delay: (ticks)", nodes[clickResult].delay);
-							if(isNaN(parseInt(delay)) || parseInt(delay)<1) alert("Invalid number!");
+							if(isNaN(parseFloat(delay)) || parseFloat(delay)<1) alert("Invalid number!");
 							else {
 								nodes[clickResult].delay=Math.round(parseFloat(delay));
 								nodes[clickResult].countdown=Math.round(parseFloat(delay));
 							}
 							break;
-						case "text":
+						case "text"://TEXT
 							var name = prompt("Enter text:");
-							if(text!=undefined && text!=="" && text!==" ") nodes[clickResult].name = name;
+							if(name!=undefined && name!=="" && name!==" " && name!==nodes[clickResult].name) {
+								var mX = getMiddleX(clickResult);
+								ctx.font = textSize+"px Arial";
+								nodes[clickResult].name = name;
+								nodes[clickResult].x1 = mX-(ctx.measureText(name).width/2);
+								nodes[clickResult].x2 = mX+(ctx.measureText(name).width/2);
+							}
 							break;
-						case "not": case "toggle":
+						case "not": case "toggle"://NOT - TOGGLE
 							nodes[clickResult].powered = !nodes[clickResult].powered;
 							nodes[clickResult].startPowered = !nodes[clickResult].startPowered;
 							break;
-						default:
+						default: //BUTTON - SWITCH - OUTPUT LAMP
 							var name = prompt("Enter name:", nodes[clickResult].name);
-							if(name!=undefined) nodes[clickResult].name = name;
+							if(name!=undefined && name!==nodes[clickResult].name) nodes[clickResult].name = name;
 					}
 				}
 			}
-			else if(selected==="line") {
-				if(lineStart===false && clickResult!==false) {
+			else if(selected==="line") {//LINE
+				if(lineStart===false && clickResult!==false) {//START LINE
 					if(["switch", "button", "not", "source", "delay", "or", "and", "pulser", "random", "toggle", "monostable"].includes(nodes[clickResult].type)) {
 						lineStart = clickResult;
+						lineLast = lineStart;
 						lineStartActivate();
 					}
 				}
-				else if(lineStart!==false) {
+				else if(lineStart!==false) {//END/CREATE LINE
 					if(!(clickResult===false || clickResult===lineStart) && ["or", "and", "not", "delay", "output", "random", "toggle", "monostable"].includes(nodes[clickResult].type) && !findDuplicateLine(clickResult)) {
 						lines.push({startID:lineStart, endID:clickResult});
 					}
@@ -749,13 +831,14 @@ $(document).ready(function() {
 					$("#canvas").off("mousemove.line");
 				}
 			}
-		}
+		}//CLICK BUTTON / SWITCH while running
 		else if(state==="running" && clickResult!==false && selected!=="pan") {
 			if(nodes[clickResult].type==="button") nodes[clickResult].powered=true;
 			else if(nodes[clickResult].type==="switch") nodes[clickResult].powered=!nodes[clickResult].powered;
 		}
 		redrawAll();
 	};
-	//Remove endora text
+	
+	//Remove Endora text
 	$("i").parent().parent().parent().remove();
 });
