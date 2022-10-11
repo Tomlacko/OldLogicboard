@@ -1,28 +1,33 @@
 <!DOCTYPE html>
 <html>
 	<head>
-		<title>Canvas Test</title>
+		<title>Logic Board Project</title>
 		<script type="text/javascript" src="../jquery-min-1.7.js"></script>
 		<script type="text/javascript" src="logicboard.js"></script>
+		<link rel="stylesheet" type="text/css" href="logicboard.css"/>
 		<meta http-equiv="content-type" content="text/html; charset=UTF-8" />
 	</head>
 	<body>
 		<div id="SelectNode">
-			<button id="text" name="nodeText">Text</button>
 			<button id="toggle" name="nodeToggle">Toggle</button>
 			<button id="button" name="nodeButton">Button</button>
 			<button id="source" name="nodeSource">Source</button>
 			<button id="or" name="nodeOr">OR Gate</button>
+			<button id="and" name="nodeAnd">AND Gate</button>
 			<button id="not" name="nodeNot">NOT Gate</button>
 			<button id="delay" name="nodeDelay">Delay</button>
 			<button id="line" name="nodeLine">Line</button>
 			<button id="output" name="nodeOutput">Output</button>
+			<button id="text" name="nodeText">Text</button>
 			<label>--|--</label>
 			<button id="edit" name="edit">Edit</button>
 			<button id="delete" name="delete">Delete</button>
 			<button id="start" name="start">START</button>
 		</div>
-		<br />
+		<div id="StopControl" class="hidden">
+			<button id="stop" name="stop">STOP</button>
+			<button id="pause" name="pause">Pause</button>
+		</div>
 		<canvas id="canvas" width="1600" height="900" style="display:inline-block; border:1px solid #CCC;"></canvas>
 	</body>
 </html>

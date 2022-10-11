@@ -68,11 +68,16 @@ $(document).ready(function() {
 	
 	var dragLastX, dragLastY = 0;
 	var dragId = 0;
+	var holdingClick = false;
+	var lineStart = false;
 	
 	var nodes = [];
-	var nNodes = {nText:0, nToggle:0, nButton:0, nSource:0, nOr:0, nNot:0, nDelay:0, nOutput:0, nLine:0};
+	var nNodes = {nText:0, nToggle:0, nButton:0, nSource:0, nOr:0, nAnd:0, nNot:0, nDelay:0, nOutput:0, nLine:0};
 	var lines = [];
+	var tickSpeed = 100;
 	var selected = "toggle";
+	var state = "edit";
+	var TimeoutID = 0;
 
 	var defaultLine = 4;
 	var defaultColor = "rgba(240, 240, 240, 255)";
@@ -88,9 +93,29 @@ $(document).ready(function() {
 	/*-----------------------------------------------------------------------------------------------*/
 	
 	$("#SelectNode button").on("click", function() {
-		if(["text", "toggle", "button", "source", "or", "not", "delay", "line", "output", "edit", "delete", "start"].includes($(this).attr("id"))) {
+		if(["text", "toggle", "button", "source", "or", "and", "not", "delay", "line", "output", "edit", "delete", "start"].includes($(this).attr("id"))) {
 			selected = $(this).attr("id");
 			if(selected==="start") startSimulation();
+		}
+		else alert("Button Error");
+	});
+	
+	$("#StopControl button").on("click", function() {
+		if($(this).attr("id")==="stop") {
+			clearTimeout(TimeoutID);
+			state="edit";
+			$("#SelectNode").removeClass("hidden");
+			$("#StopControl").addClass("hidden");
+		}
+		else if($(this).attr("id")==="pause" && state==="paused") {
+			state="running";
+			$(this).html("Pause");
+			TimeoutID = setTimeout(Tick, tickSpeed);
+		}
+		else if($(this).attr("id")==="pause") {
+			state="paused";
+			$(this).html("Continue");
+			clearTimeout(TimeoutID);
 		}
 		else alert("Button Error");
 	});
@@ -103,6 +128,7 @@ $(document).ready(function() {
 			var canY = event.clientY - rect.top;
 			dragLastX = canX;
 			dragLastY = canY;
+			holdingClick = true;
 			clickOn(canX, canY);
 		}
 	});
@@ -120,7 +146,7 @@ $(document).ready(function() {
 
 			nodes[dragId].x1+=moveX;
 			nodes[dragId].y1+=moveY;
-			if(nodes[dragId].type==="or" || nodes[dragId].type==="delay" || nodes[dragId].type==="output") {
+			if(nodes[dragId].type==="or" || nodes[dragId].type==="and" || nodes[dragId].type==="delay" || nodes[dragId].type==="output") {
 				nodes[dragId].x2+=moveX;
 				nodes[dragId].y2+=moveY;
 			}
@@ -130,11 +156,89 @@ $(document).ready(function() {
 	
 	$(document).on("mouseup", function(event) {
 		$("#canvas").off("mousemove.drag");
+		holdingClick = false;
 	});
 	
-	var startSimulation = function() {
-		//
+	var lineStartActivate = function() {
+		$("#canvas").on("mousemove.line", function(event) {
+			event.preventDefault();
+			var rect = canvas.getBoundingClientRect();
+			var canX = event.clientX - rect.left;
+			var canY = event.clientY - rect.top;
+			redrawAll();
+			if(nodes[lineStart].type!=="delay" && nodes[lineStart].type!=="or" && nodes[lineStart].type!=="and") drawLine(nodes[lineStart].x1, nodes[lineStart].y1, canX, canY, defaultOutline, defaultLine);
+			else drawLine(nodes[lineStart].x1+((nodes[lineStart].x2-nodes[lineStart].x1)/2), nodes[lineStart].y1+((nodes[lineStart].y2-nodes[lineStart].y1)/2), canX, canY, defaultOutline, defaultLine);
+		});
 	};
+	
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	
+	var startSimulation = function() {
+		$("#SelectNode").addClass("hidden");
+		$("#StopControl").removeClass("hidden");
+		state="running";
+		TimeoutID = setTimeout(Tick, tickSpeed);
+	};
+	
+	var Tick = function() {
+		TimeoutID = setTimeout(Tick, tickSpeed);
+		for(i=0; i<lines.length; i++) {
+			lines[i].powered = nodes[getRealID(lines[i].startID)].powered;
+		}
+		for(i=0; i<nodes.length; i++) {
+			switch(nodes[i].type) {
+				case "button":
+					if(!holdingClick) nodes[i].powered = false;
+					break;
+				case "and":
+					nodes[i].powered = testAnd(i);
+					break;
+				case "or": case "output":
+					nodes[i].powered = testOr(i);
+					break;
+				case "not":
+					nodes[i].powered = testNot(i);
+					break;
+				case "delay":
+					if(testOr(i)) {
+						if(nodes[i].countdown<=0) nodes[i].powered = true;
+						else nodes[i].countdown--;
+					}
+					else {
+						if(nodes[i].countdown>=nodes[i].delay) nodes[i].powered = false;
+						else nodes[i].countdown++;
+					}
+					break;
+			}
+		}
+		redrawAll();
+	};
+	
+	var testAnd = function(id) {
+		var result = false;
+		for(i=0; i<lines.length; i++) {
+			if(lines[i].endID===nodes[id].id && lines[i].powered) result = true;
+			if(lines[i].endID===nodes[id].id && !lines[i].powered) {
+				result = false;
+				break;
+			}
+		}
+		return result;
+	}
+	
+	var testOr = function(id) {
+		for(i=0; i<lines.length; i++) {
+			if(lines[i].endID===nodes[id].id && lines[i].powered) return true;
+		}
+		return false;
+	}
+	
+	var testNot = function(id) {
+		for(i=0; i<lines.length; i++) {
+			if(lines[i].endID===nodes[id].id && lines[i].powered) return false;
+		}
+		return true;
+	}
 	
 	var modifyNodeCount = function(type, oper) {
 		switch(type) {
@@ -153,6 +257,9 @@ $(document).ready(function() {
 			case "or":
 				nNodes.nOr=nNodes.nOr+oper;
 				break;
+			case "and":
+				nNodes.nAnd=nNodes.nAnd+oper;
+				break;
 			case "not":
 				nNodes.nNot=nNodes.nNot+oper;
 				break;
@@ -168,16 +275,20 @@ $(document).ready(function() {
 		}
 	};
 	
-	var addNode = function(type, powered, delay, x1, y1, x2, y2, name) {
+	var addNode = function(type, powered, x1, y1, x2, y2, name, delay) {
 		if(name==undefined) name="";
-		nodes.push({type:type, id:nodes.length, powered:powered, delay:delay, x1:x1, y1:y1, x2:x2, y2:y2, name:name});
+		nodes.push({type:type, id:nodes.length, powered:powered, x1:x1, y1:y1, x2:x2, y2:y2, name:name});
+		if(type==="delay") {
+			nodes[nodes.length-1].delay=delay;
+			nodes[nodes.length-1].countdown=delay;
+		}
 		modifyNodeCount(type, 1);
 		return nodes.length-1;
 	};
 	
-	var addNodeCircle = function(type, powered, delay, x1, y1, r, name) {
+	var addNodeCircle = function(type, powered, x1, y1, r, name) {
 		if(name==undefined) name="";
-		nodes.push({type:type, id:nodes.length, powered:powered, delay:delay, x1:x1, y1:y1, r, name:name});
+		nodes.push({type:type, id:nodes.length, powered:powered, x1:x1, y1:y1, r, name:name});
 		modifyNodeCount(type, 1);
 		return nodes.length-1;
 	};
@@ -195,7 +306,7 @@ $(document).ready(function() {
 	
 	var powerColorLine = function(line) {
 		if(lines[line].powered) return defaultPower;
-		else return defaultColor;
+		else return defaultOutline;
 	};
 	
 	var getMiddleX = function(node) {
@@ -209,6 +320,7 @@ $(document).ready(function() {
 	};
 	
 	var getRealID = function(id) {
+		if(nodes[id].id===id) return id;
 		for(i=0; i<nodes.length; i++) {
 			if(nodes[i].id===id) return i;
 		}
@@ -241,6 +353,10 @@ $(document).ready(function() {
 					drawRect(nodes[i].x1, nodes[i].y1, nodes[i].x2, nodes[i].y2, powerColor(i), defaultOutline, defaultLine);
 					drawText(getMiddleX(i),getMiddleY(i), "OR", defaultGate);
 					break;
+				case "and":
+					drawRect(nodes[i].x1, nodes[i].y1, nodes[i].x2, nodes[i].y2, powerColor(i), defaultOutline, defaultLine);
+					drawText(getMiddleX(i),getMiddleY(i), "AND", defaultGate);
+					break;
 				case "not":
 					drawCircle(nodes[i].x1, nodes[i].y1, nodes[i].r, powerColor(i), defaultOutline, defaultLine);
 					drawText(nodes[i].x1, nodes[i].y1, "NOT", defaultGate);
@@ -260,7 +376,7 @@ $(document).ready(function() {
 	var getClickedNode = function(x, y) {
 		if(nodes.length===0) return false;
 		for(i = nodes.length-1; i>=0; i--) {
-			if(nodes[i].type==="or" || nodes[i].type==="delay" || nodes[i].type==="output") {
+			if(nodes[i].type==="or" || nodes[i].type==="and" || nodes[i].type==="delay" || nodes[i].type==="output") {
 				if(x>=nodes[i].x1 && nodes[i].x2>=x && y>=nodes[i].y1 && nodes[i].y2>=y) return i;
 			}
 			else if(nodes[i].type==="text") {
@@ -284,80 +400,98 @@ $(document).ready(function() {
 	var clickOn = function(x, y) {
 		var clickResult = getClickedNode(x, y);
 		var clickResultLine = false;
-		if(selected!=="start") var clickResultLine = getClickedLine(x, y);
-		
-		if(selected!=="line" && selected!=="start" && selected!=="edit" && selected!=="delete") {
-			if(clickResult!==false) {
-				var obj = nodes[clickResult];
-				nodes.splice(clickResult, 1);
-				nodes.push(obj);
-				dragId=nodes.length-1;
-				redrawAll();
-				nodeMoveActivate();
+		if(state==="edit") {
+			var clickResultLine = getClickedLine(x, y);
+			if(selected!=="line" && selected!=="start" && selected!=="edit" && selected!=="delete") {
+				if(clickResult!==false) {
+					var obj = nodes[clickResult];
+					nodes.splice(clickResult, 1);
+					nodes.push(obj);
+					dragId=nodes.length-1;
+					redrawAll();
+					nodeMoveActivate();
+				}
+				else {
+					switch(selected) {
+						case "toggle": case "button":
+							var name=prompt("Input name:");
+							if(name!=undefined) addNodeCircle(selected, false, x, y, defaultRadius, name);
+							break;
+						case "or": case "and":
+							addNode(selected, false, x-(defaultWidth/2), y-(defaultHeight/2), x+(defaultWidth/2), y+(defaultHeight/2), "", -1);
+							break;
+						case "delay":
+							var delay=prompt("Set delay: (10=1sec)");
+							if(isNaN(parseInt(delay)) || parseInt(delay)<0) alert("You have to enter a number!");
+							else addNode(selected, false, x-(defaultWidth/2), y-(defaultHeight/2), x+(defaultWidth/2), y+(defaultHeight/2), "", parseInt(delay));
+							break;
+						case "not":
+							addNodeCircle(selected, true, x, y, defaultRadius, "");
+							break;
+						case "output":
+							var name=prompt("Output name:");
+							if(name!=undefined) addNode(selected, false, x-(defaultHeight/2), y-(defaultHeight/2), x+(defaultHeight/2), y+(defaultHeight/2), name, -1);
+							break;
+						case "source":
+							addNodeCircle(selected, true, x, y, defaultRadius, "");
+							break;
+						case "text":
+							var text = prompt("Enter text:");
+							if(text!=undefined) addNode("text", false, x, y, ctx.measureText(text).width, 16, text, -1);
+							break;
+					}
+				}
 			}
-			else {
-				switch(selected) {
-					case "toggle": case "button":
-						var name=prompt("Input name:");
-						if(name!=undefined) addNodeCircle(selected, false, 0, x, y, defaultRadius, name);
-						break;
-					case "or":
-						addNode(selected, false, 0, x-(defaultWidth/2), y-(defaultHeight/2), x+(defaultWidth/2), y+(defaultHeight/2), "");
-						break;
-					case "delay":
-						var delay=prompt("Set delay: (100=1sec)");
-						if(isNaN(parseInt(delay)) || parseInt(delay)<0) alert("You have to enter a number!");
-						else addNode(selected, false, parseInt(delay), x-(defaultWidth/2), y-(defaultHeight/2), x+(defaultWidth/2), y+(defaultHeight/2), "");
-						break;
-					case "not":
-						addNodeCircle(selected, true, 0, x, y, defaultRadius, "");
-						break;
-					case "output":
-						var name=prompt("Output name:");
-						if(name!=undefined) addNode(selected, false, 0, x-(defaultHeight/2), y-(defaultHeight/2), x+(defaultHeight/2), y+(defaultHeight/2), name);
-						break;
-					case "source":
-						addNodeCircle(selected, true, 0, x, y, defaultRadius, "");
-						break;
-					case "text":
-						var text = prompt("Enter text:");
-						if(text!=undefined) addNode("text", false, 0, x, y, ctx.measureText(text).width, 16, text);
-						break;
+			else if(selected==="delete") {
+				if(clickResult!==false) {
+					modifyNodeCount(nodes[clickResult].type, -1);
+					nodes.splice(clickResult, 1);
+				}
+				else if(clickResultLine!==false) {
+					modifyNodeCount("line", -1);
+					lines.splice(clickResultLine, 1);
+				}
+			}
+			else if(selected==="edit" && clickResult!==false) {
+				if(nodes[clickResult].type==="delay" || nodes[clickResult].type==="button" || nodes[clickResult].type==="toggle" || nodes[clickResult].type==="text" || nodes[clickResult].type==="output") {
+					switch(nodes[clickResult].type) {
+						case "delay":
+							var delay=prompt("Set delay: (10=1sec)");
+							if(isNaN(parseInt(delay)) || parseInt(delay)<0) alert("You have to enter a number!");
+							else nodes[clickResult].delay=parseInt(delay);
+							break;
+						case "text":
+							var name = prompt("Enter text:");
+							if(name!=undefined) nodes[clickResult].name = name;
+							break;
+						default:
+							var name = prompt("Enter name:");
+							if(name!=undefined) nodes[clickResult].name = name;
+					}
+				}
+			}
+			else if(selected==="line") {
+				if(lineStart===false && clickResult!==false) {
+					if(nodes[clickResult].type==="toggle" || nodes[clickResult].type==="button" || nodes[clickResult].type==="not" || nodes[clickResult].type==="source" || nodes[clickResult].type==="delay") {
+						lineStart = clickResult;
+						lineStartActivate();
+					}
+				}
+				else if(lineStart!==false) {
+					if(clickResult===false) {}
+					else if(nodes[clickResult].type!=="toggle" && nodes[clickResult].type!=="button" && nodes[clickResult].type!=="source" && nodes[clickResult].type!=="text") {
+						addLine(false, nodes[lineStart].id, nodes[clickResult].id);
+					}
+					lineStart=false;
+					$("#canvas").off("mousemove.line");
 				}
 			}
 		}
-		else if(selected==="delete") {
-			if(clickResult!==false) {
-				modifyNodeCount(nodes[clickResult].type, -1);
-				nodes.splice(clickResult, 1);
-			}
-			else if(clickResultLine!==false) {
-				modifyNodeCount("line", -1);
-				lines.splice(clickResultLine, 1);
-			}
+		else if(state==="running") {
+			if(nodes[clickResult].type==="button") nodes[clickResult].powered=true;
+			else if(nodes[clickResult].type==="toggle" && nodes[clickResult].powered===false) nodes[clickResult].powered=true;
+			else if(nodes[clickResult].type==="toggle") nodes[clickResult].powered=false;
 		}
-		else if(selected==="edit") {
-			if(nodes[clickResult].type==="delay" || nodes[clickResult].type==="button" || nodes[clickResult].type==="toggle" || nodes[clickResult].type==="text" || nodes[clickResult].type==="output") {
-				switch(nodes[clickResult].type) {
-					case "delay":
-						var delay=prompt("Set delay: (100=1sec)");
-						if(isNaN(parseInt(delay)) || parseInt(delay)<0) alert("You have to enter a number!");
-						else nodes[clickResult].delay=parseInt(delay);
-						break;
-					case "text":
-						var name = prompt("Enter text:");
-						if(name!=undefined) nodes[clickResult].name = name;
-						break;
-					default:
-						var name = prompt("Enter name:");
-						if(name!=undefined) nodes[clickResult].name = name;
-				}
-			}
-		}
-		else if(selected==="line") {
-			
-		}
-		else alert("Click action Error");
 		redrawAll();
 	};
 });
