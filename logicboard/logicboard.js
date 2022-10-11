@@ -135,7 +135,7 @@ $(document).ready(function() {
 	
 	//resize canvas to window
 	$(window).on("resize", function() {
-		ctx.canvas.height = Math.max($(window).height()-120, 10);
+		ctx.canvas.height = Math.max($(window).height()-($("#panel").outerHeight()+$("#nodebarContainer").outerHeight()), 71);//137
 		ctx.canvas.width = Math.max($(window).width(), 10);
 		width = canvas.width;
 		height = canvas.height;
@@ -388,28 +388,30 @@ $(document).ready(function() {
 	/*----------------------EVENTS-/-HTML------------------------------------------------------------*/
 	
 	//prevent button dragging and highlighting
-	$(document).on("mousedown", function(e) {
-		if(e.which===1 && !$(e.target).is("input")) e.preventDefault();
+	$(document).on(mobile?"touchstart":"mousedown", function(e) {
+		if((e.type!=="touchstart" || e.which===1) && !$(e.target).is("input")) {
+			e.preventDefault();
+		}
 		if($(document.activeElement).parent().parent().is("#place")) $(".placeOpt:not(.hidden) input").blur();
 	});
 	
 	//click on BUTTONS/NODES - activated effect
-	$(".node, .button, #labelFile").on("mousedown", function(e) {
-		if(e.which===1) {
+	$(".node, .button, #labelFile").on(mobile?"touchstart":"mousedown", function(e) {
+		if(e.type==="touchstart" || e.which===1) {
 			$(".node, .button").removeClass("activated");
 			$(this).addClass("activated");
 		}
 	});
-	$(document).on("mouseup", function(e) {
-		$(".node, .button, #labelFile").removeClass("activated");
+	$(document).on(mobile?"touchend":"mouseup", function(e) {
+		if(e.type==="touchend" || e.which===1) $(".node, .button, #labelFile").removeClass("activated");
 	});
 	
 	//hide overlay
-	$("#close").on("mousedown", function(e) {
-		if(e.which===1) {
+	$("#close").on(mobile?"click":"mousedown", function(e) {
+		if(e.type==="click" || e.which===1) {
 			$("#information").scrollTop(0);
 			$("input").blur();
-			$(".popup, #overlay, #copyDone").addClass("hidden");
+			$(".menu, #overlay, #copyDone").addClass("hidden");
 		}
 	});
 	
@@ -425,12 +427,12 @@ $(document).ready(function() {
 	
 	//show settings
 	$("#settings").on("click", function() {
-		$("#overlay, #popup_settings").removeClass("hidden");
+		$("#overlay, #menu_settings").removeClass("hidden");
 	});
 	
 	//show info
 	$("#info").on("click", function() {
-		$("#overlay, #popup_info").removeClass("hidden");
+		$("#overlay, #menu_info").removeClass("hidden");
 	});
 	
 	//new project
@@ -460,7 +462,7 @@ $(document).ready(function() {
 	//show load project
 	$("#load").on("click", function() {
 		if(state!=="edit") stopSimulation();
-		$("#overlay, #popup_load").removeClass("hidden");
+		$("#overlay, #menu_load").removeClass("hidden");
 		$("#pasteImport").focus();
 		setTimeout(function() {$("#pasteImport").select();}, 1);
 	});
@@ -468,7 +470,7 @@ $(document).ready(function() {
 	//show save project
 	$("#save").on("click", function() {
 		if(state!=="edit") stopSimulation();
-		$("#overlay, #popup_save").removeClass("hidden");
+		$("#overlay, #menu_save").removeClass("hidden");
 		$("#exportSave").val(btoa(JSON.stringify([nodes, lines, [fileVersion, canvasX, canvasY, zoom, tickSpeed]])));
 		$("#downloadName").focus();
 		setTimeout(function() {$("#downloadName").select();}, 1);
@@ -491,7 +493,7 @@ $(document).ready(function() {
 		else if(filename.length>50) alert("The file name is too long!");
 		else {
 			downloadProject(filename+".lgb", btoa(JSON.stringify([nodes, lines, [fileVersion, canvasX, canvasY, zoom, tickSpeed]])));
-			$("#overlay, #popup_save").addClass("hidden");
+			$("#overlay, #menu_save").addClass("hidden");
 			save();
 		}
 	});
@@ -509,7 +511,7 @@ $(document).ready(function() {
 			r.onload = function(e) {
 				var content = e.target.result;
 				if(content==="" || content==null || content==false) alert("The file is empty!");
-				if(loadFile(content)) $(".popup, #overlay").addClass("hidden");
+				if(loadFile(content)) $(".menu, #overlay").addClass("hidden");
 			};
 			r.readAsText(file);
 		}
@@ -519,7 +521,7 @@ $(document).ready(function() {
 	$("#pasteButton").on("click", function() {
 		var filedata = $("#pasteImport").val();
 		if(filedata==="" || filedata==null || filedata==false) return false;
-		if(loadFile(filedata)) $(".popup, #overlay").addClass("hidden");
+		if(loadFile(filedata)) $(".menu, #overlay").addClass("hidden");
 	});
 
 	//drag file over canvas
@@ -609,7 +611,7 @@ $(document).ready(function() {
 		var newSpeed = prompt("Ticks per second: (Hz)  [Default=100]", (1000/tickSpeed));
 		newSpeed = formatNum(newSpeed);
 		if(newSpeed===false) return;
-		if(newSpeed<0.1 || newSpeed>1000) alert("Invalid number!");//popupMsg();
+		if(newSpeed<0.1 || newSpeed>1000) popupMsg("Invalid number!", "#F88");
 		else {
 			tickSpeed=1000/newSpeed;
 			$("#speedSetting").html("Ticks per second: "+newSpeed);
@@ -699,7 +701,6 @@ $(document).ready(function() {
 			else {
 				selected = $(this).attr("id");
 				if(!$(this).is("#replace")) $("#place").addClass("hidden");
-				if($(this).is("#line")) $("#replace").addClass("disabled");
 			}
 			$(this).addClass("selected");
 		}
@@ -723,7 +724,7 @@ $(document).ready(function() {
 		}
 		else if($(this).attr("id")==="pause") {
 			state="paused";
-			$("#pause").attr("src", "icons/continue.png");
+			$("#pause").attr("src", "icons/continue.svg");
 			$("#step").removeClass("disabled");
 			clearTimeout(TimeoutID);
 		}
@@ -857,10 +858,10 @@ $(document).ready(function() {
 	});
 	
 	//TRACK global MOUSE coordinates - mousemove
-	$("#canvas").on("mousemove.global", function(event) {
+	$("#canvas").on(mobile?"touchstart.global touchmove.global":"mousemove.global", function(e) {
 		var rect = canvas.getBoundingClientRect();
-		globalX = event.clientX - rect.left;
-		globalY = event.clientY - rect.top;
+		globalX = (mobile?Math.round(e.originalEvent.touches[0].clientX):e.clientX) - rect.left;
+		globalY =(mobile?Math.round(e.originalEvent.touches[0].clientY):e.clientY) - rect.top;
 		realX = (globalX/zoom)-canvasX;
 		realY = (globalY/zoom)-canvasY;
 		updateDebug();
@@ -880,7 +881,7 @@ $(document).ready(function() {
 		//w=87 a=65 s=83 d=68  -  up=38 left=37 down=40 right=39
 		var keyID = parseInt(key.which,10);
 		if(!$("#overlay").hasClass("hidden")) {
-			if(keyID===27) $("#close").trigger("mousedown");
+			if(keyID===27) $("#close").trigger(mobile?"touchstart":"mousedown");
 			else if(keyID===13 && $(document.activeElement).is("#downloadName")) $("#downloadButton").trigger("click");
 			else if(keyID===13 && $(document.activeElement).is("#pasteImport")) $("#pasteButton").trigger("click");
 			return;
@@ -894,7 +895,7 @@ $(document).ready(function() {
 		if($("#canvas:hover").length!=0) var obj = getClickedNode(canX, canY);
 		else var obj=false;
 		//KEY R - align to grid
-		if(keyID===82 && state==="edit" && obj!==false) {
+		if(keyID===82 && state==="edit" && obj!==false && !dragging) {
 			nodes[obj].x=Math.round(nodes[obj].x/gridSpacing)*gridSpacing;
 			nodes[obj].y=Math.round(nodes[obj].y/gridSpacing)*gridSpacing;
 			addUndo();
@@ -975,7 +976,7 @@ $(document).ready(function() {
 			if(state==="edit") {
 				if(lineStart!==false) {
 					lineStart=false;
-					$("#canvas").off("mousemove.line");
+					$("#canvas").off(mobile?"touchmove.line":"mousemove.line");
 				}
 				startSimulation();
 			}
@@ -984,7 +985,7 @@ $(document).ready(function() {
 		else if(keyID===27) {
 			if(lineStart!==false) {
 				lineStart=false;
-				$("#canvas").off("mousemove.line");
+				$("#canvas").off(mobile?"touchmove.line":"mousemove.line");
 				redraw();
 			}
 			else if(state!=="edit" && !holdingClick) stopSimulation();
@@ -1004,20 +1005,20 @@ $(document).ready(function() {
 	//////MAIN CLICK EVENT - click on canvas
 	//confirm click - mouse up click
 	function mainClickEnd() {
-		$("#canvas").on("mouseup.main", function(e) {
-			if(e.which===1) {
-				$("#canvas").off("mousemove.start");
-				$("#canvas").off("mouseup.main");
+		$("#canvas").on(mobile?"touchend.main":"mouseup.main", function(e) {
+			if(e.type==="touchend" || e.which===1) {
+				$("#canvas").off(mobile?"touchmove.start":"mousemove.start");
+				$("#canvas").off(mobile?"touchend.main":"mouseup.main");
 				setTimeout(mainClickStart, mouseDelay);
 				clickOn(realX, realY);
 			}
 		});
 	}//detect moving mouse - cancel main click
 	function mainMoveStart() {
-		$("#canvas").on("mousemove.start", function() {
-			if(Math.abs(startClickX-globalX)>2 || Math.abs(startClickY-globalY)>5) {
-				$("#canvas").off("mouseup.main");
-				$("#canvas").off("mousemove.start");
+		$("#canvas").on(mobile?"touchmove.start":"mousemove.start", function() {
+			if(Math.abs(startClickX-globalX)>(mobile?8:2) || Math.abs(startClickY-globalY)>(mobile?8:2)) {
+				$("#canvas").off(mobile?"touchend.main":"mouseup.main");
+				$("#canvas").off(mobile?"touchmove.start":"mousemove.start");
 				mainAltEnd();
 				var clickResult = getClickedNode(realX, realY);
 				if(selected==="line" && clickResult!==false && lineStart===false) {
@@ -1028,17 +1029,18 @@ $(document).ready(function() {
 		});
 	}//stop holding mouse - alternative mouse up
 	function mainAltEnd() {
-		$(document).on("mouseup.end", function(e) {
-			if(e.which===1) {
-				$(document).off("mouseup.end");
+		$(document).on(mobile?"touchend.end":"mouseup.end", function(e) {
+			if(e.type==="touchend" || e.which===1) {
+				$(document).off(mobile?"touchend.end":"mouseup.end");
 				setTimeout(mainClickStart, mouseDelay);
 			}
 		});
 	}//start holding mouse - determine next action
 	function mainClickStart() {
-		$("#canvas").on("mousedown.start", function(e) {
-			if(e.which===1) {
-				$("#canvas").off("mousedown.start");
+		$("#canvas").on(mobile?"touchstart.start":"mousedown.start", function(e) {
+			if(e.type==="touchstart" || e.which===1) {
+				e.preventDefault();
+				$("#canvas").off(mobile?"touchstart.start":"mousedown.start");
 				var canX=realX;
 				var canY=realY;
 				holdingClick = true;
@@ -1062,8 +1064,8 @@ $(document).ready(function() {
 		$("#place").find("*").add("#place").css("pointer-events", "none");
 		dragLastX = realX;
 		dragLastY = realY;
-		$("#canvas").on("mousemove.drag", function(event) {
-			event.preventDefault();
+		$("#canvas").on(mobile?"touchmove.drag":"mousemove.drag", function(e) {
+			e.preventDefault();
 			var canX=realX;
 			var canY=realY;
 			var moveX = canX-dragLastX;
@@ -1077,14 +1079,14 @@ $(document).ready(function() {
 	}
 	
 	//MOUSE disable hold - mouseup
-	$(document).on("mouseup", function(e) {
-		if(e.which===1) {
+	$(document).on(mobile?"touchend":"mouseup", function(e) {
+		if(e.type==="touchend" || e.which===1) {
 			if(dragging) {
-				$("#canvas").off("mousemove.drag");
+				$("#canvas").off(mobile?"touchmove.drag":"mousemove.drag");
 				dragging = false;
 				addUndo();
 			}
-			$("#canvas").off("mousemove.pan");
+			$("#canvas").off(mobile?"touchmove.pan":"mousemove.pan");
 			$("#place").find("*").add("#place").css("pointer-events", "auto");
 			holdingClick = false;
 		}
@@ -1092,7 +1094,7 @@ $(document).ready(function() {
 	
 	//MOUSE start line - mousemove
 	function lineStartActivate() {
-		$("#canvas").on("mousemove.line", function(event) {
+		$("#canvas").on(mobile?"touchmove.line":"mousemove.line", function(event) {
 			redraw();
 		});
 	}
@@ -1102,7 +1104,7 @@ $(document).ready(function() {
 		$("#place").find("*").add("#place").css("pointer-events", "none");
 		panLastX=globalX/zoom;
 		panLastY=globalY/zoom;
-		$("#canvas").on("mousemove.pan", function(event) {
+		$("#canvas").on(mobile?"touchmove.pan":"mousemove.pan", function(event) {
 			event.preventDefault();
 			var canX=globalX/zoom;
 			var canY=globalY/zoom;
@@ -1113,6 +1115,62 @@ $(document).ready(function() {
 			panLastY = canY;
 			redraw();
 		});
+	}
+	
+	//CLOSE POPUP
+	function popupClose() {
+		$("#popupConfirm").off("click");
+		$("#popupClose").off("click");
+		$("#popupCancel").off("click");
+		$("#popupWrap").addClass("hidden");
+		$("#popupInput").addClass("hidden");
+		//$("#popupInput").val("");
+		$("#popupConfirm").addClass("hidden");
+		$("#popupClose").addClass("hidden");
+		$("#popupCancel").addClass("hidden");
+		$("#popupMsg").html("");
+	}
+	
+	//Display POPUP message
+	function popupMsg(msg, color, callbackClose) {
+		var spanStart = "";
+		var spanEnd = "";
+		if(color!==undefined) {
+			spanStart = "<span style=\"color:"+color+"\">";
+			spanEnd = "</span>";
+		}
+		$("#popupMsg").html(spanStart+msg+spanEnd);
+		$("#popupClose").removeClass("hidden");
+		$("#popupWrap").removeClass("hidden");
+		if(callbackClose!==undefined) $("#popupClose").on("click", callbackClose);
+	}
+	
+	//Display POPUP input
+	function popupInput(msg, pre, callbackConfirm, callbackCancel) {
+		$("#popupMsg").html(msg);
+		if(pre==undefined) pre="";
+		$("#popupInput").val(pre);
+		$("#popupInput").removeClass("hidden");
+		$("#popupConfirm").removeClass("hidden");
+		$("#popupCancel").removeClass("hidden");
+		$("#popupWrap").removeClass("hidden");
+		$("#popupConfirm").on("click", callbackConfirm);
+		$("#popupCancel").on("click", callbackCancel);
+	}
+	
+	//Display POPUP confirm
+	function popupConfirm(msg, callbackConfirm, callbackCancel) {
+		$("#popupMsg").html(msg);
+		$("#popupConfirm").removeClass("hidden");
+		$("#popupCancel").removeClass("hidden");
+		$("#popupWrap").removeClass("hidden");
+		$("#popupConfirm").on("click", callbackConfirm);
+		$("#popupCancel").on("click", callbackCancel);
+	}
+	
+	//Input error blink
+	function inputError($obj) {
+		
 	}
 	
 	/*-----------------------------CANVAS-LOGIC------------------------------------------------------*/
@@ -1133,7 +1191,6 @@ $(document).ready(function() {
 		$("#pause").attr("src", "icons/pause.png");
 		$("#step").addClass("disabled");
 		$(".node, #EditControls .button").removeClass("disabled");
-		if(selected==="line") $("#replace").addClass("disabled");
 		resetPower();
 		redraw();
 	}
@@ -1145,7 +1202,7 @@ $(document).ready(function() {
 		$(".node, #EditControls .button").addClass("disabled");
 		if(lineStart!==false) {
 			lineStart=false;
-			$("#canvas").off("mousemove.line");
+			$("#canvas").off(mobile?"touchmove.line":"mousemove.line");
 		}
 		state="running";
 		TimeoutID = setTimeout(Tick, tickSpeed);
@@ -1594,12 +1651,12 @@ $(document).ready(function() {
 					if(!(clickResult===false || clickResult===lineStart) && design[nodes[clickResult].t].canEndLine && !dupes) {
 						lines.push({a:lineStart, b:clickResult});
 						lineStart=false;
-						$("#canvas").off("mousemove.line");
+						$("#canvas").off(mobile?"touchmove.line":"mousemove.line");
 						addUndo();
 					}
 					else if(clickResult===false) {
 						lineStart=false;
-						$("#canvas").off("mousemove.line");
+						$("#canvas").off(mobile?"touchmove.line":"mousemove.line");
 					}
 				}
 			}

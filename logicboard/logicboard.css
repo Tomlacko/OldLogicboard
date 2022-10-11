@@ -23,7 +23,7 @@ h2 {
 	font-size:24px;
 }
 
-p, strong, button {
+p, strong, button, td {
 	font-size:14px;
 }
 
@@ -49,7 +49,6 @@ input[type=button] {
 	border-radius:50px;
 	text-align:left;
 	cursor:pointer;
-	margin-left:5px;
 	transition:background 0.2s;
 	vertical-align:bottom;
 }
@@ -116,7 +115,7 @@ input[type=button] {
 }
 
 #canvas {
-	box-shadow:0px 0px 15px #555;
+	/*box-shadow:0px 0px 15px #555;*/
 	position:absolute;
 	/*cursor:crosshair;*/
 }
@@ -134,49 +133,6 @@ input[type=button] {
 	position:absolute;
 	top:10px;
 	left:10px;
-}
-
-#place {
-	display:inline-block;
-	position:absolute;
-	float:right;
-	top:5px;
-	right:5px;
-	border:2px solid #000;
-	border-radius:3px;
-	background-color:rgba(51, 51, 51, 0.9);
-	transition:background 0.2s;
-	padding:10px;
-	text-align:right;
-}
-
-/*
-#place:hover {
-	background-color:rgba(51, 51, 51, 0.9);
-}*/
-
-#place p:first-child {
-	color:#8AF;
-	cursor:default;
-	font-weight:bold;
-	text-shadow:1px 1px 3px #222;
-	margin-bottom:5px;
-	text-align:left;
-}
-
-#place p:not(:first-child) {
-	color:#DDD;
-	display:inline-block;
-	margin-right:5px;
-	cursor:default;
-}
-
-.placeOpt input {
-	width:134px;
-}
-
-.placeOpt input[type=number] {
-	text-align:right;
 }
 
 #overlay {
@@ -201,7 +157,7 @@ input[type=button] {
 	background-color:#AAA;
 }
 
-.popup {
+.menu {
 	text-align:center;
 	margin-top:125px;
 	height:calc(100% - 125px);
@@ -209,11 +165,11 @@ input[type=button] {
 	min-height:100px;
 }
 
-.popup h1, .popup h2 {
+.menu h1, .menu h2 {
 	margin-bottom:15px;
 }
 
-.popup h1, .popup p, .popup strong, .popup h2 {
+.menu h1, .menu p, .menu strong, .menu h2, .menu td {
 	color:#FFF;
 	text-shadow:0px 0px 5px #222;
 }
@@ -248,10 +204,18 @@ input[type=button] {
 	margin-left:calc(50% - 254.5px);
 }
 
+#nodebarContainer {
+	overflow-x:auto;
+	overflow-y:hidden;
+	box-shadow:0px 1px 4px #444;
+	position:relative;
+	z-index:10;
+}
+
 #nodebar {
 	background-color:#333;
 	width:100%;
-	min-width:1236px;
+	min-width:1150px;
 	height:86px;
 	border-top:2px solid #000;
 	border-bottom:2px solid #000;
@@ -308,18 +272,18 @@ input[type=button] {
 	background-color:#999;
 }
 
-#popup_info img, #popup_info p {
+#menu_info img, #menu_info p {
 	display:inline-block;
 	vertical-align:middle;
 }
 
-#popup_info img {
+#menu_info img {
 	margin-right:8px;
 }
 
 #InformationWrapper {
 	overflow:auto;
-	height:calc(100% - 52px);
+	height:calc(100% - 53px);
 }
 
 #information {
@@ -329,6 +293,116 @@ input[type=button] {
 	width:800px;
 }
 
-#popup_settings {
-	
+#settingsTable td:first-child {
+	text-align:left;
+}
+
+#settingsTable td:nth-child(2) {
+	text-align:left;
+	padding-left:5px;
+	padding-bottom:4px;
+}
+
+#settingsTable {
+	display:inline-block;
+	min-width:265px;
+}
+
+#place {
+	display:inline-block;
+	position:absolute;
+	float:right;
+	top:5px;
+	right:5px;
+	border:2px solid #000;
+	border-radius:3px;
+	background-color:rgba(51, 51, 51, 0.9);
+	transition:background 0.2s;
+	padding:10px;
+	text-align:right;
+}
+
+#place p:first-child {
+	color:#8AF;
+	cursor:default;
+	font-weight:bold;
+	text-shadow:1px 1px 3px #222;
+	margin-bottom:5px;
+	text-align:left;
+}
+
+#place p:not(:first-child) {
+	color:#DDD;
+	display:inline-block;
+	margin-right:5px;
+	cursor:default;
+}
+
+.placeOpt input {
+	width:134px;
+}
+
+.placeOpt input[type=number] {
+	text-align:right;
+}
+
+#popupWrap {
+	position:fixed;
+	width:100%;
+	height:100%;
+	background-color:rgba(255, 255, 255, 0.5);
+	z-index:1000;
+	text-align:center;
+}
+
+#popup {
+	display:inline-block;
+	margin-top:10%;
+	border:2px solid #000;
+	border-radius:3px;
+	background-color:rgba(51, 51, 51, 0.9);
+	padding:10px;
+	padding-bottom:55px;
+	text-align:left;
+	width:185px;
+	position:relative;
+	box-shadow:0px 0px 10px rgba(0, 0, 0, 0.5);
+}
+
+.pButton {
+	background-color:rgba(100, 100, 100, 0.9);
+	padding:5px;
+	transition:0.15s;
+	cursor:pointer;
+	margin-top:10px;
+	display:inline-block;
+	position:absolute;
+	margin:10px;
+	box-shadow:0px 0px 3px rgba(0, 0, 0, 0.5);
+}
+
+.pButton:hover {
+	background-color:rgba(150, 150, 150, 0.9);
+	box-shadow:0px 0px 8px rgba(0, 0, 0, 0.5);
+}
+
+.pButton * {
+	display:inline-block;
+	vertical-align:middle;
+	padding:2px;
+}
+
+#popup p {
+	color:#FFF;
+	font-weight:bold;
+	text-shadow:1px 1px 3px #222;
+}
+
+#popupMsg {
+	cursor:default;
+}
+
+#popupInput {
+	margin-top:8px;
+	width:calc(100% - 4px);
 }
