@@ -6,6 +6,8 @@
 
 body {
 	background-color:#BBB;
+	font-size:0px;
+	overflow:hidden;
 }
 
 .hidden {
@@ -15,7 +17,6 @@ body {
 #canvas {
 	background-color:#FFF;
 	box-shadow:0px 0px 15px #555;
-	margin-left:10px;
 }
 
 #overlay {
@@ -51,6 +52,7 @@ body {
 
 #panel {
 	width:100%;
+	min-width:685px;
 	height:26px;
 	background-color:#DDD;
 	padding-top:2px;
@@ -70,6 +72,10 @@ body {
 	margin-left:5px;
 }
 
+#MoveControls {
+	margin-left:25%;
+}
+
 hr {
 	height:24px;
 	border:1px solid #000;
@@ -81,6 +87,7 @@ hr {
 #nodebar {
 	background-color:#333;
 	width:100%;
+	min-width:1240px;
 	height:84px;
 	padding-top:2px;
 	padding-bottom:2px;
@@ -96,11 +103,15 @@ hr {
 	padding:1px;
 }
 
-.node:hover {
+.disabled {
+	opacity:0.2;
+}
+
+.node:hover:not(.disabled) {
 	background-color:#8AF;
 }
 
-.node:active {
+.node:active:not(.disabled) {
 	background-color:#CCF;
 }
 
@@ -111,36 +122,14 @@ hr {
 	border-radius:2px;
 }
 
-.button:hover {
+.button:hover:not(.disabled) {
 	background-color:#AAA;
 }
 
-.button:active {
+.button:active:not(.disabled) {
 	background-color:#777;
 }
 
-/*
-.toolbar {
-	margin-left:5px;
-	margin-top:5px;
-	margin-bottom:5px;
-	display:inline-block;
+#canvasContainer {
+	width:100%;
 }
-
-#Options {
-	float:right;
-	margin-right:10px;
-}
-
-.toolbar button {
-	cursor:pointer;
-}
-
-#SelectNode div {
-	width:100px;
-	height:50px;
-	background-color:#222;
-	display:inline-block;
-	border:2px solid #EEF;
-	margin-left:5px;
-}*/

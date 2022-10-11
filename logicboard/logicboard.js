@@ -82,23 +82,31 @@ $(document).ready(function() {
 	
 	/*-----------------------------------------------------------------------------------------------*/
 	
+	//resize canvas to window
+	$(window).on("resize", function() {
+		ctx.canvas.height = $(window).height()-122;
+		ctx.canvas.width = $(window).width();
+		width = canvas.width;
+		height = canvas.height;
+		midX = width/2;
+		midY = height/2;
+		ctx.textAlign="center";
+		ctx.textBaseline="middle";
+		ctx.scale(zoom, zoom);
+		ctx.translate(canvasX, canvasY);
+		if(redrawAll!=undefined) redrawAll();
+	});
+	
 	var canvas = document.getElementById("canvas");
 	var ctx = canvas.getContext("2d");
-	ctx.canvas.width = window.innerWidth-40;
-	ctx.canvas.height = window.innerHeight-80;
-	var width = canvas.width;
-	var height = canvas.height;
-	var midX = width/2;
-	var midY = height/2;
 	var zoom = 1;
 	var zoomSpeed = 2;
 	var maxZoom = 16;
 	var minZoom = 0.03125;
+	$(window).trigger("resize");
 	
 	var fontSize = 16;
 	var textSize = 28;
-	ctx.textAlign="center";
-	ctx.textBaseline="middle";
 	
 	var panLastX = 0;
 	var panLastY = 0;
@@ -199,7 +207,7 @@ $(document).ready(function() {
 	
 	//TOOLBAR - Select item
 	$(".node, #pan, #delete, #edit, #replace,").on("click", function() {
-		selected = $(this).attr("id");
+		if(state="edit") selected = $(this).attr("id");
 	});
 	
 	//START click
@@ -215,23 +223,34 @@ $(document).ready(function() {
 		else if($(this).attr("id")==="pause" && state==="paused") {
 			state="running";
 			$("#pause").attr("src", "icons/pause.png");
+			$("#step").addClass("disabled");
 			TimeoutID = setTimeout(Tick, tickSpeed);
 		}
 		else if($(this).attr("id")==="pause") {
 			state="paused";
 			$("#pause").attr("src", "icons/continue.png");
+			$("#step").removeClass("disabled");
 			clearTimeout(TimeoutID);
 		}
 		else if($(this).attr("id")==="step") {
-			if(state!=="paused") {
-				state="paused";
-				$("#pause").attr("src", "icons/continue.png");
+			if(state==="paused") {
+				Tick();
 				clearTimeout(TimeoutID);
 			}
-			Tick();
-			clearTimeout(TimeoutID);
 		}
 		else alert("Button Error");
+	});
+	
+	//TOOLBAR zoom+
+	$("#zoom").on("click", function() {
+		zoomF();
+		redrawAll();
+	});
+	
+	//TOOLBAR zoom- (unzoom)
+	$("#unzoom").on("click", function() {
+		unzoomF();
+		redrawAll();
 	});
 	
 	/*-----------------------------------------------------------------------------------------------*/
@@ -300,21 +319,46 @@ $(document).ready(function() {
 		}
 	});
 	
+	var zoomF = function() {
+		if(zoom<maxZoom) {
+			ctx.translate(-canvasX, -canvasY);
+			zoom=zoom*zoomSpeed;
+			canvasX-=midX/zoom;
+			canvasY-=midY/zoom;
+			ctx.scale(zoomSpeed,zoomSpeed);
+			ctx.translate(canvasX, canvasY);
+		}
+	};
+	
+	var unzoomF = function() {
+		if(zoom>minZoom) {
+			ctx.translate(-canvasX, -canvasY);
+			canvasX+=midX/zoom;
+			canvasY+=midY/zoom;
+			ctx.scale(1/zoomSpeed,1/zoomSpeed);
+			ctx.translate(canvasX, canvasY);
+			zoom=zoom/zoomSpeed;
+		}
+	};
+	
 	//STOP Simulation
 	var stopSimulation = function() {
 		clearTimeout(TimeoutID);
 		state="edit";
-		$("#nodebar, #StartControls").removeClass("hidden");
+		$("#StartControls").removeClass("hidden");
 		$("#StopControls").addClass("hidden");
 		$("#pause").attr("src", "icons/pause.png");
+		$("#step").addClass("disabled");
+		$(".node").removeClass("disabled");
 		resetPower();
 		redrawAll();
 	};
 	
 	//START SIMULATION
 	var startSimulation = function() {
-		$("#nodebar, #StartControls").addClass("hidden");
+		$("#StartControls").addClass("hidden");
 		$("#StopControls").removeClass("hidden");
+		$(".node").addClass("disabled");
 		state="running";
 		TimeoutID = setTimeout(Tick, tickSpeed);
 	};
@@ -393,54 +437,18 @@ $(document).ready(function() {
 			}
 			redrawAll();
 		}//KEY - UNZOOM
-		else if(keyID===109 && zoom>minZoom) {
-			ctx.translate(-canvasX, -canvasY);
-			canvasX+=midX/zoom;
-			canvasY+=midY/zoom;
-			ctx.scale(0.5,0.5);
-			ctx.translate(canvasX, canvasY);
-			zoom=zoom/2;
+		else if(keyID===109) {
+			unzoomF();
 			redrawAll();
 		}//KEY + ZOOM
 		else if(keyID===107 && zoom<maxZoom) {
-			ctx.translate(-canvasX, -canvasY);
-			zoom=zoom*2;
-			canvasX-=midX/zoom;
-			canvasY-=midY/zoom;
-			ctx.scale(2,2);
-			ctx.translate(canvasX, canvasY);
+			zoomF();
 			redrawAll();
 		}//KEY E - Edit
 		else if(keyID===69/*LOL*/ && obj!==false  && state==="edit" && !holdingClick) {
 			if(editObj(obj)) redrawAll();
 		}
 	});
-	
-	//TOOLBAR zoom+
-	/*
-	$("#zoom").on("click", function() {
-		ctx.translate(-canvasX, -canvasY);
-		zoom=zoom*2;
-		canvasX-=midX/zoom;
-		canvasY-=midY/zoom;
-		ctx.scale(2,2);
-		ctx.translate(canvasX, canvasY);
-		//ctx.translate(-(midX/zoom), -(midY/zoom));
-		redrawAll();
-	});
-	
-	//TOOLBAR zoom- (unzoom)
-	$("#unzoom").on("click", function() {
-		ctx.translate(-canvasX, -canvasY);
-		canvasX+=midX/zoom;
-		canvasY+=midY/zoom;
-		ctx.scale(0.5,0.5);
-		ctx.translate(canvasX, canvasY);
-		//ctx.translate(midX/zoom, midY/zoom);
-		zoom=zoom/2;
-		redrawAll();
-	});
-	*/
 	
 	//MOUSE ZOOM ScrollWheel
 	$('#canvas').bind('mousewheel', function(e){
@@ -456,20 +464,10 @@ $(document).ready(function() {
 		canX=canX*zoom;
 		canY=canY*zoom;
 		if(e.originalEvent.wheelDelta/120 > 0) {//ZOOM+
-			ctx.translate(-canvasX, -canvasY);
-			zoom=zoom*zoomSpeed;
-			canvasX-=midX/zoom;
-			canvasY-=midY/zoom;
-			ctx.scale(zoomSpeed,zoomSpeed);
-			ctx.translate(canvasX, canvasY);
+			zoomF();
 		}
 		else{//ZOOM- / UNZOOM
-			ctx.translate(-canvasX, -canvasY);
-			canvasX+=midX/zoom;
-			canvasY+=midY/zoom;
-			ctx.scale(1/zoomSpeed,1/zoomSpeed);
-			ctx.translate(canvasX, canvasY);
-			zoom=zoom/zoomSpeed;
+			unzoomF();
 		}
 		canX=canX/zoom;
 		canY=canY/zoom;

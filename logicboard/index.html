@@ -40,16 +40,28 @@
 			<div id="StopControls" class="hidden">
 				<img src="icons/stop.png" id="stop" class="button" title="STOP" />
 				<img src="icons/pause.png" id="pause" class="button" title="Pause / Continue" />
-				<img src="icons/step.png" id="step" class="button" title="Step" />
+				<img src="icons/step.png" id="step" class="button disabled" title="Step" />
 			</div>
 			<div id="StartControls">
 				<img src="icons/start.png" id="start" class="button" title="START Simulation" />
 				<img src="icons/undo.png" id="undo" class="button" title="Undo" />
 				<img src="icons/redo.png" id="redo" class="button" title="Redo" />
 			</div>
+			<div id="MoveControls">
+				<img src="icons/left.png" id="move_left" class="button" title="Move Left" />
+				<img src="icons/up.png" id="move_up" class="button" title="Move Up" />
+				<img src="icons/down.png" id="move_down" class="button" title="Move Down" />
+				<img src="icons/right.png" id="move_right" class="button" title="Move Right" />
+				<img src="icons/zoom.png" id="zoom" class="button" title="Zoom+" />
+				<img src="icons/unzoom.png" id="unzoom" class="button" title="Zoom-" />
+				<img src="icons/select.png" id="select" class="button" title="Select Objects" />
+				<img src="icons/edit.png" id="edit" class="button" title="Edit Object" />
+				<img src="icons/delete.png" id="delete" class="button" title="Delete Object" />
+				<img src="icons/replace.png" id="replace" class="button" title="Replace Object" />
+			</div>
 			<div id="Options">
-				<img src="icons/load.png" id="load" class="button" title="LOAD" />
 				<img src="icons/save.png" id="save" class="button" title="SAVE" />
+				<img src="icons/load.png" id="load" class="button" title="LOAD" />
 				<img src="icons/download.png" id="download" class="button" title="Download" />
 				<img src="icons/settings.png" id="settings" class="button" title="Settings" />
 			</div>
@@ -70,22 +82,6 @@
 			<img src="nodes/output.png" id="output" class="node" title="Output Lamp" />
 			<img src="nodes/text.png" id="text" class="node" title="Text" />
 		</div>
-		<div id="toolbar">
-			
-			
-			
-			<div id="SelectNode" class="toolbar hidden">
-				<button id="pan" name="pan">Pan</button>
-				<button id="edit" name="edit">Edit</button>
-				<button id="delete" name="delete">Delete</button>
-			</div>
-			<div id="StopControl" class="toolbar hidden">
-				<button id="stop" name="stop">STOP</button>
-				<button id="pause" name="pause">Pause</button>
-				<button id="step" name="step" class="hidden">Step&gt;&gt;</button>
-			</div>
-			<p id="debug" style="display:inline-block" class="hidden"></p>
-		</div>
-		<canvas id="canvas" width="1600" height="900" style="display:inline-block; border:1px solid #CCC;"></canvas>
+		<canvas id="canvas" width="16" height="9"></canvas>
 	</body>
 </html>
