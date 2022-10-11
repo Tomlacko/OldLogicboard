@@ -180,6 +180,8 @@ $(document).ready(function() {
 	var realX = 0;
 	var realY = 0;
 	var dragId = 0;
+	var lastDelay = 5;
+	var lastPulser = 5;
 	var holdingClick = false;
 	var holdingCTRL = false;
 	var lineStart = false;
@@ -210,13 +212,14 @@ $(document).ready(function() {
 	var blackColor = "rgba(0, 0, 0, 255)";//#000
 	var redColor = "rgba(255, 0, 0, 255)";//#F00;
 	var blueColor = "rgba(0, 0, 255, 255)";//#0000FF
+	var greenColor = "rgba(0, 255, 0, 255)";//#0F0
 	var noOutline = "rgba(0, 0, 0, 0)";
 	var outlineColor = blackColor;
 	
 	var nodeUnpoweredColor = "rgba(200, 200, 200, 255)";//#C8C8C8
+	var nodePoweredColor = redColor;
 	var lineUnpoweredColor = blackColor;
 	var lineUnpoweredGradient = "rgba(150, 150, 150, 255)";//#969696
-	var nodePoweredColor = redColor;
 	var linePoweredColor = redColor;
 	var linePoweredGradient = "rgba(255, 150, 150, 255)";//#FF9696
 	var textColor = blackColor;
@@ -226,14 +229,150 @@ $(document).ready(function() {
 	var defaultWidth = 80;
 	var defaultHeight = 40;
 	
-	var lastDelay = 5;
-	var lastPulser = 5;
+	var design = {
+		"s":{
+			"fullName":"Switch",
+			"shape":"circle",
+			"radius":24,
+			"outline":true,
+			"textColor":blueColor,
+			"textSize":16,
+			"canStartLine":true,
+			"canEndLine":false
+		},
+		"b":{
+			"fullName":"Button",
+			"shape":"circle",
+			"radius":24,
+			"outline":true,
+			"textColor":blueColor,
+			"textSize":16,
+			"canStartLine":true,
+			"canEndLine":false
+		},
+		"p":{
+			"fullName":"Pulser",
+			"shape":"circle",
+			"radius":24,
+			"outline":true,
+			"textColor":textNodeColor,
+			"textSize":16,
+			"canStartLine":true,
+			"canEndLine":true
+		},
+		"o":{
+			"fullName":"OR",
+			"shape":"rect",
+			"width":60,
+			"height":40,
+			"outline":true,
+			"textColor":textNodeColor,
+			"textSize":16,
+			"canStartLine":true,
+			"canEndLine":true
+		},
+		"a":{
+			"fullName":"AND",
+			"shape":"rect",
+			"width":60,
+			"height":40,
+			"outline":true,
+			"textColor":textNodeColor,
+			"textSize":16,
+			"canStartLine":true,
+			"canEndLine":true
+		},
+		"n":{
+			"fullName":"NOT",
+			"shape":"circle",
+			"radius":24,
+			"outline":true,
+			"textColor":textNodeColor,
+			"textSize":16,
+			"canStartLine":true,
+			"canEndLine":true
+		},
+		"d":{
+			"fullName":"DELAY",
+			"shape":"oval",
+			"width":80,
+			"height":40,
+			"outline":true,
+			"textColor":textNodeColor,
+			"textSize":16,
+			"canStartLine":true,
+			"canEndLine":true
+		},
+		"t":{
+			"fullName":"TOGGLE",
+			"shape":"rect",
+			"width":80,
+			"height":80,
+			"outline":true,
+			"textColor":textNodeColor,
+			"textSize":16,
+			"canStartLine":true,
+			"canEndLine":true
+		},
+		"m":{
+			"fullName":"MONOSTABLE",
+			"shape":"rect",
+			"width":112,
+			"height":40,
+			"outline":true,
+			"textColor":textNodeColor,
+			"textSize":16,
+			"canStartLine":true,
+			"canEndLine":true
+		},
+		"r":{
+			"fullName":"RANDOM",
+			"shape":"circle",
+			"radius":38,
+			"outline":true,
+			"textColor":textNodeColor,
+			"textSize":16,
+			"canStartLine":true,
+			"canEndLine":true
+		},
+		"#":{
+			"fullName":"NOTE",
+			"shape":"rect",
+			"width":40,
+			"height":40,
+			"outline":true,
+			"textColor":greenColor,
+			"textSize":16,
+			"canStartLine":false,
+			"canEndLine":true
+		},
+		"l":{
+			"fullName":"OUTPUT",
+			"shape":"rect",
+			"width":gridSpacing,
+			"height":gridSpacing,
+			"outline":false,
+			"textColor":blackColor,
+			"textSize":16,
+			"canStartLine":false,
+			"canEndLine":true
+		},
+		"w":{
+			"fullName":"Text",
+			"shape":"rect",
+			"outline":false,
+			"textColor":blackColor,
+			"textSize":28,
+			"canStartLine":false,
+			"canEndLine":false
+		},
+	};
 	
 	$(window).trigger("resize");
 	
 	//TAGS:   r,x1,x2,y1,y2, s=shape, n=name, t=type, p=powered, a=startID, b=endID, d=delay, c=countdown, f=fired, sp=startPowered
 	//SHAPES: c=circle, r=rect=rectangle, o=oval
-	//TYPES:  s=switch, b=button, p=pulser, q=source, o=or, a=and, n=not, d=delay, t=toggle, m=monostable, r=random, l=output(lamp), w=text
+	//TYPES:  s=switch, b=button, p=pulser, *q=source*, o=or, a=and, n=not, d=delay, t=toggle, m=monostable, r=random, l=output(lamp), w=text
 	
 	/*----------------------EVENTS-/-HTML------------------------------------------------------------*/
 	
@@ -447,6 +586,19 @@ $(document).ready(function() {
 		}
 	});
 	
+	//Show Grid Slider
+	$("#gridSlider").on("click", function() {
+		if($("#gridSlider").hasClass("activated")) {
+			$("#gridSlider").removeClass("activated");
+			showGrid=false;
+		}
+		else {
+			$("#gridSlider").addClass("activated");
+			showGrid=true;
+		}
+		redraw();
+	});
+	
 	//Reset grid position when clicked
 	$("#resetPosButton").on("click", function() {
 		ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -577,29 +729,29 @@ $(document).ready(function() {
 	
 	//move UP canvas button
 	$("#move_up").on("click", function() {
-		canvasY+=64/zoom;
-		ctx.translate(0, 64/zoom);
+		canvasY+=gridSpacing/zoom;
+		ctx.translate(0, gridSpacing/zoom);
 		redraw();
 	});
 	
 	//move DOWN canvas button
 	$("#move_down").on("click", function() {
-		canvasY-=64/zoom;
-		ctx.translate(0, -64/zoom);
+		canvasY-=gridSpacing/zoom;
+		ctx.translate(0, -gridSpacing/zoom);
 		redraw();
 	});
 	
 	//move LEFT canvas button
 	$("#move_left").on("click", function() {
-		canvasX+=64/zoom;
-		ctx.translate(64/zoom, 0);
+		canvasX+=gridSpacing/zoom;
+		ctx.translate(gridSpacing/zoom, 0);
 		redraw();
 	});
 	
 	//move RIGHT canvas button
 	$("#move_right").on("click", function() {
-		canvasX-=64/zoom;
-		ctx.translate(-64/zoom, 0);
+		canvasX-=gridSpacing/zoom;
+		ctx.translate(-gridSpacing/zoom, 0);
 		redraw();
 	});
 	
@@ -675,7 +827,7 @@ $(document).ready(function() {
 			redraw();
 		}//KEY WASD / up,left,down,right - PAN
 		else if([87, 65, 83, 68, 38, 37, 40, 39].includes(keyID)) {
-			var panAmount = 32/zoom;
+			var panAmount = gridSpacing/zoom;
 			switch(keyID) {
 				case 87: case 38://w - up
 					canvasY+=panAmount;
@@ -772,7 +924,7 @@ $(document).ready(function() {
 	}//detect moving mouse - cancel main click
 	function mainMoveStart() {
 		$("#canvas").on("mousemove.start", function() {
-			if(Math.abs(startClickX-globalX)>5 || Math.abs(startClickY-globalY)>5) {
+			if(Math.abs(startClickX-globalX)>2 || Math.abs(startClickY-globalY)>5) {
 				$("#canvas").off("mouseup.main");
 				$("#canvas").off("mousemove.start");
 				mainAltEnd();
