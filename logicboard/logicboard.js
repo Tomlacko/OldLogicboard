@@ -159,7 +159,7 @@ $(document).ready(function() {
 	
 	/*-----------------------------SETUP-------------------------------------------------------------*/
 	
-	var fileVersion = 4;
+	var fileVersion = 5;
 	var canvas = document.getElementById("canvas");
 	var ctx = canvas.getContext("2d");
 	var zoom = 1;
@@ -192,7 +192,7 @@ $(document).ready(function() {
 	var lines = [];
 	var tickSpeed = 10;
 	var mouseDelay = 10;
-	var selected = "s";
+	var selected = 1;
 	var state = "edit";
 	var TimeoutID = 0;
 	var ticks = 0;
@@ -202,15 +202,16 @@ $(document).ready(function() {
 	var gridSpacing = 42;
 	var gridLineWidth = 1;
 	var gridLineWidthBig = 2;
-	var gridLineColor = "rgba(220, 220, 220, 255)";
+	var gridLineColor = "rgba(220, 220, 220, 255)";//#DCDCDC
 	
 	var fontSize = 16;
 	var textSize = 28;
 	var outlineWidth = 4;
 	var lineWidth = 4;
+	var lineClickRadius = 0.08;
 	
 	var blackColor = "rgba(0, 0, 0, 255)";//#000
-	var redColor = "rgba(255, 0, 0, 255)";//#F00;
+	var redColor = "rgba(255, 0, 0, 255)";//#F00
 	var blueColor = "rgba(0, 0, 255, 255)";//#0000FF
 	var greenColor = "rgba(0, 255, 0, 255)";//#0F0
 	var noOutline = "rgba(0, 0, 0, 0)";
@@ -222,15 +223,11 @@ $(document).ready(function() {
 	var lineUnpoweredGradient = "rgba(150, 150, 150, 255)";//#969696
 	var linePoweredColor = redColor;
 	var linePoweredGradient = "rgba(255, 150, 150, 255)";//#FF9696
-	var textColor = blackColor;
-	var textNameColor = blueColor;
 	var textNodeColor = "rgba(128, 128, 128, 255)";//#808080
-	var defaultRadius = 24;
-	var defaultWidth = 80;
-	var defaultHeight = 40;
 	
-	var design = {
-		"s":{
+	var design = [
+		null,
+		{//1
 			"fullName":"Switch",
 			"shape":"circle",
 			"radius":24,
@@ -238,9 +235,10 @@ $(document).ready(function() {
 			"textColor":blueColor,
 			"textSize":16,
 			"canStartLine":true,
-			"canEndLine":false
+			"canEndLine":false,
+			"editable":true
 		},
-		"b":{
+		{//2
 			"fullName":"Button",
 			"shape":"circle",
 			"radius":24,
@@ -248,9 +246,10 @@ $(document).ready(function() {
 			"textColor":blueColor,
 			"textSize":16,
 			"canStartLine":true,
-			"canEndLine":false
+			"canEndLine":false,
+			"editable":true
 		},
-		"p":{
+		{//3
 			"fullName":"Pulser",
 			"shape":"circle",
 			"radius":24,
@@ -258,9 +257,10 @@ $(document).ready(function() {
 			"textColor":textNodeColor,
 			"textSize":16,
 			"canStartLine":true,
-			"canEndLine":true
+			"canEndLine":true,
+			"editable":true
 		},
-		"o":{
+		{//4
 			"fullName":"OR",
 			"shape":"rect",
 			"width":60,
@@ -269,9 +269,10 @@ $(document).ready(function() {
 			"textColor":textNodeColor,
 			"textSize":16,
 			"canStartLine":true,
-			"canEndLine":true
+			"canEndLine":true,
+			"editable":false
 		},
-		"a":{
+		{//5
 			"fullName":"AND",
 			"shape":"rect",
 			"width":60,
@@ -280,9 +281,10 @@ $(document).ready(function() {
 			"textColor":textNodeColor,
 			"textSize":16,
 			"canStartLine":true,
-			"canEndLine":true
+			"canEndLine":true,
+			"editable":false
 		},
-		"n":{
+		{//6
 			"fullName":"NOT",
 			"shape":"circle",
 			"radius":24,
@@ -290,9 +292,10 @@ $(document).ready(function() {
 			"textColor":textNodeColor,
 			"textSize":16,
 			"canStartLine":true,
-			"canEndLine":true
+			"canEndLine":true,
+			"editable":true
 		},
-		"d":{
+		{//7
 			"fullName":"DELAY",
 			"shape":"oval",
 			"width":80,
@@ -301,9 +304,10 @@ $(document).ready(function() {
 			"textColor":textNodeColor,
 			"textSize":16,
 			"canStartLine":true,
-			"canEndLine":true
+			"canEndLine":true,
+			"editable":true
 		},
-		"t":{
+		{//8
 			"fullName":"TOGGLE",
 			"shape":"rect",
 			"width":80,
@@ -312,9 +316,10 @@ $(document).ready(function() {
 			"textColor":textNodeColor,
 			"textSize":16,
 			"canStartLine":true,
-			"canEndLine":true
+			"canEndLine":true,
+			"editable":true
 		},
-		"m":{
+		{//9
 			"fullName":"MONOSTABLE",
 			"shape":"rect",
 			"width":112,
@@ -323,9 +328,10 @@ $(document).ready(function() {
 			"textColor":textNodeColor,
 			"textSize":16,
 			"canStartLine":true,
-			"canEndLine":true
+			"canEndLine":true,
+			"editable":false
 		},
-		"r":{
+		{//10
 			"fullName":"RANDOM",
 			"shape":"circle",
 			"radius":38,
@@ -333,9 +339,10 @@ $(document).ready(function() {
 			"textColor":textNodeColor,
 			"textSize":16,
 			"canStartLine":true,
-			"canEndLine":true
+			"canEndLine":true,
+			"editable":false
 		},
-		"#":{
+		{//11
 			"fullName":"NOTE",
 			"shape":"rect",
 			"width":40,
@@ -344,9 +351,10 @@ $(document).ready(function() {
 			"textColor":greenColor,
 			"textSize":16,
 			"canStartLine":false,
-			"canEndLine":true
+			"canEndLine":true,
+			"editable":true
 		},
-		"l":{
+		{//12
 			"fullName":"OUTPUT",
 			"shape":"rect",
 			"width":gridSpacing,
@@ -355,24 +363,33 @@ $(document).ready(function() {
 			"textColor":blackColor,
 			"textSize":16,
 			"canStartLine":false,
-			"canEndLine":true
+			"canEndLine":true,
+			"editable":true
 		},
-		"w":{
+		{//13
 			"fullName":"Text",
 			"shape":"rect",
 			"outline":false,
 			"textColor":blackColor,
 			"textSize":28,
 			"canStartLine":false,
-			"canEndLine":false
-		},
-	};
+			"canEndLine":false,
+			"editable":true
+		}
+	];
 	
 	$(window).trigger("resize");
 	
-	//TAGS:   r,x1,x2,y1,y2, s=shape, n=name, t=type, p=powered, a=startID, b=endID, d=delay, c=countdown, f=fired, sp=startPowered
-	//SHAPES: c=circle, r=rect=rectangle, o=oval
-	//TYPES:  s=switch, b=button, p=pulser, *q=source*, o=or, a=and, n=not, d=delay, t=toggle, m=monostable, r=random, l=output(lamp), w=text
+	
+	
+	/*
+	TAGS:   r,x,y, *s=shape*, n=name/note, t=type, p=powered, a=startID, b=endID, d=delay, c=countdown, f=fired, sp=startPowered, w=width(text)
+	
+	SHAPES: c=circle, r=rect=rectangle, o=oval
+	
+	TYPES:  (1)s=switch, (2)b=button, (3)p=pulser, *q=source*, (4)o=or, (5)a=and, (6)n=not,
+	        (7)d=delay, (8)t=toggle, (9)m=monostable, (10)r=random, (11)#=note, (12)l=output(lamp), (13)w=text
+	*/
 	
 	/*----------------------EVENTS-/-HTML------------------------------------------------------------*/
 	
@@ -410,7 +427,7 @@ $(document).ready(function() {
 				canvasY=0;
 				ctx.setTransform(1, 0, 0, 1, 0, 0);
 				tickSpeed=10;
-				$("#speedSetting").html("Ticks per second: "+Math.round(1000/tickSpeed));
+				$("#speedSetting").html("Ticks per second: 100");
 				dragId=0;
 				lineStart=false;
 				lineLast=false;
@@ -436,7 +453,6 @@ $(document).ready(function() {
 	});
 	
 	//clipboard copy
-	var textToCopy = "";
 	var clipboardProject = new Clipboard("#copyButton", {
 		text: function(trigger) {
 			$("#copyDone").removeClass("hidden");
@@ -456,13 +472,14 @@ $(document).ready(function() {
 		}
 	});
 	
-	//load project from file button
+	//LOAD project from file button
 	$("#inputFile").change(function() {
 		var file=document.getElementById("inputFile").files[0];
 		var inp=$("#inputFile");
 		inp.replaceWith(inp=inp.clone(true));
-		if(file.name.slice(-4)!==".lgb") alert("Unsupported file type!");
-		else if(file.size>50000000) alert("File is too big!");
+		var fName = file.name;
+		if(fName.slice(-4)!==".lgb") alert("Unsupported file type!");
+		else if(file.size>50000000/*50MB*/) alert("File is too big!");
 		else {
 			var r = new FileReader();
 			r.onload = function(e) {
@@ -494,14 +511,15 @@ $(document).ready(function() {
 		$("#fileOverlay").stop();
 		$("#fileOverlay").animate({opacity:0}, 300, function() {$("#fileOverlay").addClass("hidden")});
 	});
-	//try to LOAD FILE
+	//LOAD project from Drag & Drop
 	$("#canvas").on("drop", function(e) {
 		e.preventDefault();
 		$("#fileOverlay").stop();
 		$("#fileOverlay").css("opacity",0).addClass("hidden");
 		var file=e.originalEvent.dataTransfer.files[0];
-		if(file.name.slice(-4)!==".lgb") alert("Unsupported file type!");
-		else if(file.size>50000000) alert("File is too big!");
+		var fName = file.name;
+		if(fName.slice(-4)!==".lgb") alert("Unsupported file type!");
+		else if(file.size>50000000/*50MB*/) alert("File is too big!");
 		else {
 			var r = new FileReader();
 			r.onload = function(e) {
@@ -616,7 +634,8 @@ $(document).ready(function() {
 				$("#canvas").off("mousemove.line");
 				redraw();
 			}
-			selected = $(this).attr("id");
+			if($(this).hasClass("node") && !$(this).is("#line")) selected = parseInt($(this).attr("id"));
+			else selected = $(this).attr("id");
 			$(".node, #delete, #edit, #replace, #select").removeClass("selected");
 			$(this).addClass("selected");
 		}
@@ -653,13 +672,13 @@ $(document).ready(function() {
 		else alert("Button Error");
 	});
 	
-	//TOOLBAR zoom+
+	//BUTTON zoom+
 	$("#zoom").on("click", function() {
 		zoomF();
 		redraw();
 	});
 	
-	//TOOLBAR zoom- (unzoom)
+	//BUTTON zoom- (unzoom)
 	$("#unzoom").on("click", function() {
 		unzoomF();
 		redraw();
@@ -699,6 +718,7 @@ $(document).ready(function() {
 		}
 	}
 	
+	//ZOOM+- on cursor FUNCTION
 	function centeredZoom(scrollAmount) {
 		var canX=globalX/zoom;
 		var canY=globalY/zoom;
@@ -727,28 +747,28 @@ $(document).ready(function() {
 		redraw();
 	}
 	
-	//move UP canvas button
+	//BUTTON move UP
 	$("#move_up").on("click", function() {
 		canvasY+=gridSpacing/zoom;
 		ctx.translate(0, gridSpacing/zoom);
 		redraw();
 	});
 	
-	//move DOWN canvas button
+	//BUTTON move DOWN
 	$("#move_down").on("click", function() {
 		canvasY-=gridSpacing/zoom;
 		ctx.translate(0, -gridSpacing/zoom);
 		redraw();
 	});
 	
-	//move LEFT canvas button
+	//BUTTON move LEFT
 	$("#move_left").on("click", function() {
 		canvasX+=gridSpacing/zoom;
 		ctx.translate(gridSpacing/zoom, 0);
 		redraw();
 	});
 	
-	//move RIGHT canvas button
+	//BUTTON move RIGHT
 	$("#move_right").on("click", function() {
 		canvasX-=gridSpacing/zoom;
 		ctx.translate(-gridSpacing/zoom, 0);
@@ -788,22 +808,8 @@ $(document).ready(function() {
 		else var obj=false;
 		//KEY R - align to grid
 		if(keyID===82 && state==="edit" && obj!==false) {
-			var centerX = getMiddleX(obj);
-			var centerY = getMiddleY(obj);
-			var newX = Math.round(centerX/gridSpacing)*gridSpacing;
-			var newY = Math.round(centerY/gridSpacing)*gridSpacing;
-			if(nodes[obj].s!=="c") {
-				var shiftX = newX-centerX;
-				var shiftY = newY-centerY;
-				nodes[obj].x1+=shiftX;
-				nodes[obj].x2+=shiftX;
-				nodes[obj].y1+=shiftY;
-				nodes[obj].y2+=shiftY;
-			}
-			else {
-				nodes[obj].x1=newX;
-				nodes[obj].y1=newY;
-			}
+			nodes[obj].x=Math.round(nodes[obj].x/gridSpacing)*gridSpacing;
+			nodes[obj].y1=Math.round(nodes[obj].y/gridSpacing)*gridSpacing;
 			unsaved=true;
 			redraw();
 		}//KEY F - quick new line
@@ -888,7 +894,6 @@ $(document).ready(function() {
 				startSimulation();
 			}
 			else stopSimulation();
-			redraw();
 		}//KEY Esc - Cancel
 		else if(keyID===27) {
 			if(lineStart!==false) {
@@ -978,12 +983,8 @@ $(document).ready(function() {
 			var moveY = canY-dragLastY;
 			dragLastX = canX;
 			dragLastY = canY;
-			nodes[dragId].x1+=moveX;
-			nodes[dragId].y1+=moveY;
-			if(nodes[dragId].s!=="c") {
-				nodes[dragId].x2+=moveX;
-				nodes[dragId].y2+=moveY;
-			}
+			nodes[dragId].x+=moveX;
+			nodes[dragId].y+=moveY;
 			redraw();
 		});
 	}
@@ -1060,19 +1061,30 @@ $(document).ready(function() {
 		}
 		for(i=0; i<nodes.length; i++) {
 			switch(nodes[i].t) {
-				case "b":
+				case 1://SWITCH
+					//DO NOTHING
+					break;
+				case 2://BUTTON
 					if(!holdingClick) nodes[i].p = false;
 					break;
-				case "a":
-					nodes[i].p = testAnd(i);
+				case 3://PULSER
+					if(nodes[i].p) nodes[i].p = false;
+					if(nodes[i].c>0) nodes[i].c--;
+					else {
+						nodes[i].p = true;
+						nodes[i].c = nodes[i].d;
+					}
 					break;
-				case "o": case "l":
+				case 4://OR
 					nodes[i].p = testOr(i);
 					break;
-				case "n":
+				case 5://AND
+					nodes[i].p = testAnd(i);
+					break;
+				case 6://NOT
 					nodes[i].p = !testOr(i);
 					break;
-				case "d":
+				case 7://DELAY
 					var isPowered = testOr(i);
 					if(isPowered && nodes[i].p) nodes[i].c=0;
 					else if(isPowered || (nodes[i].c<nodes[i].d && !nodes[i].p)) {
@@ -1084,16 +1096,7 @@ $(document).ready(function() {
 						else nodes[i].c++;
 					}
 					break;
-				case "m":
-					var isPowered = testOr(i);
-					if(nodes[i].p) nodes[i].p = false;
-					if(isPowered && !nodes[i].f) {
-						nodes[i].f = true;
-						nodes[i].p = true;
-					}
-					else if(!isPowered) nodes[i].f = false;
-					break;
-				case "t":
+				case 8://TOGGLE
 					var isPowered = testOr(i);
 					if(isPowered && !nodes[i].f) {
 						nodes[i].p = !nodes[i].p;
@@ -1101,15 +1104,16 @@ $(document).ready(function() {
 					}
 					else if(!isPowered) nodes[i].f = false;
 					break;
-				case "p":
+				case 9://MONOSTABLE
+					var isPowered = testOr(i);
 					if(nodes[i].p) nodes[i].p = false;
-					if(nodes[i].c>0) nodes[i].c--;
-					else {
+					if(isPowered && !nodes[i].f) {
+						nodes[i].f = true;
 						nodes[i].p = true;
-						nodes[i].c = nodes[i].d;
 					}
+					else if(!isPowered) nodes[i].f = false;
 					break;
-				case "r":
+				case 10://RANDOM
 					var isPowered = testOr(i);
 					if(nodes[i].p) nodes[i].p = false;
 					if(isPowered && !nodes[i].f) {
@@ -1117,6 +1121,12 @@ $(document).ready(function() {
 						nodes[i].f = true;
 					}
 					else if(!isPowered) nodes[i].f = false;
+					break;
+				case 11://NOTE
+					//NOT YET IMPLEMENTED
+					break;
+				case 12://OUTPUT LAMP
+					nodes[i].p = testOr(i);
 					break;
 			}
 		}
@@ -1148,45 +1158,13 @@ $(document).ready(function() {
 	function resetPower() {
 		for(j=0; j<nodes.length; j++) {
 			if(nodes[j].sp!=undefined) nodes[j].p = nodes[j].sp;
-			else if(nodes[j].t!=="q") nodes[j].p = false;
-			if(["d", "p"].includes(nodes[j].t)) nodes[j].c = nodes[j].d;
+			else if(nodes[j].p!=undefined) nodes[j].p = false;
+			if(nodes[j].d!=undefined) nodes[j].c = nodes[j].d;
 			if(nodes[j].f!=undefined) nodes[j].f = false;
 		}
 		for(j=0; j<lines.length; j++) {
 			lines[j].p = false;
 		}
-	}
-	
-	//get object name from letter
-	function getFullName(n) {
-		switch(n) {
-			case "s": return "switch";
-			case "b": return "button";
-			case "p": return "pulser";
-			case "q": return "source";
-			case "o": return "or";
-			case "a": return "and";
-			case "n": return "not";
-			case "d": return "delay";
-			case "t": return "toggle";
-			case "m": return "monostable";
-			case "r": return "random";
-			case "l": return "output";
-			case "w": return "text";
-			default: return false;
-		}
-	}
-	
-	//get object middle X
-	function getMiddleX(node) {
-		if(nodes[node].s==="c") return nodes[node].x1;
-		else return nodes[node].x1+((nodes[node].x2-nodes[node].x1)/2);
-	}
-	
-	//get object middle Y
-	function getMiddleY(node) {
-		if(nodes[node].s==="c") return nodes[node].y1;
-		else return nodes[node].y1+((nodes[node].y2-nodes[node].y1)/2);
 	}
 	
 	//Find duplicate line - prevent creating multiple identical lines
@@ -1231,37 +1209,40 @@ $(document).ready(function() {
 	//EDIT object
 	function editObj(id, lineID) {
 		if(id!==false) {
-			if(["d", "b", "s", "w", "l", "n", "p", "t"].includes(nodes[id].t)) {
-				switch(nodes[id].t) {
-					case "d": case "p"://DELAY - PULSER
-						var delay=prompt("Set delay: (ticks)", nodes[id].d);
-						if(isNaN(parseFloat(delay)) || parseFloat(delay)<1) alert("Invalid number!");
-						else {
-							nodes[id].d=Math.round(parseFloat(delay));
-							nodes[id].c=Math.round(parseFloat(delay));
-						}
-						break;
-					case "w"://TEXT
-						var name = prompt("Enter text:", nodes[id].n);
-						if(name!=undefined && name!=="" && name!==" " && name!==nodes[id].n) {
-							var mX = getMiddleX(id);
-							ctx.font = textSize+"px Arial";
-							var measure = ctx.measureText(name).width/2;
-							nodes[id].n = name;
-							nodes[id].x1 = Math.round(mX-measure);
-							nodes[id].x2 = Math.round(mX+measure);
-						}
-						break;
-					case "n": case "t"://NOT - TOGGLE
-						nodes[id].p = !nodes[id].p;
-						nodes[id].sp = !nodes[id].sp;
-						break;
-					default: //BUTTON - SWITCH - OUTPUT LAMP
-						var name = prompt("Enter name:", nodes[id].n);
-						if(name!=undefined && name!==nodes[id].n) nodes[id].n = name;
-				}
-				return true;
+			if(!design[nodes[id].t].editable) return false;
+			switch(nodes[id].t) {
+				case 1: case 2: case 12://EDIT NAME (BUTTON, SWITCH, OUTPUT LAMP)
+					var name = prompt("Enter name:", nodes[id].n);
+					if(name!=undefined && name!==nodes[id].n) nodes[id].n = name;
+					break;
+				case 3: case 7://EDIT DELAY (PULSER, DELAY)
+					var delay=prompt("Set delay: (ticks)", nodes[id].d);
+					if(isNaN(parseFloat(delay)) || parseFloat(delay)<1) alert("Invalid number!");
+					else {
+						nodes[id].d=Math.round(parseFloat(delay));
+						nodes[id].c=Math.round(parseFloat(delay));
+					}
+					break;
+				case 6: case 8://EDIT STARTING POWER (NOT, TOGGLE)
+					nodes[id].p = !nodes[id].p;
+					nodes[id].sp = !nodes[id].sp;
+					break;
+				case 11://EDIT NOTE (NOTE)
+					//not yet implemented
+					break;
+				case 13://EDIT TEXT (TEXT)
+					var text = prompt("Enter text:", nodes[id].n);
+					if(text!=undefined && text!=="" && text!==" " && text!==nodes[id].n) {
+						ctx.font = textSize+"px Arial";
+						var measure = parseFloat(ctx.measureText(text).width.toFixed(2));
+						nodes[id].n = text;
+						nodes[id].w = measure;
+					}
+					break;
+				default:
+					return false;
 			}
+			return true;
 		}
 		else if(lineID!==false) {
 			lineStart = lines[lineID].a;
@@ -1308,48 +1289,41 @@ $(document).ready(function() {
 		clear();
 		if(showGrid && zoom>=0.125) drawGrid();
 		for(i=0; i<lines.length; i++) {
-			drawLine(getMiddleX(lines[i].a), getMiddleY(lines[i].a), getMiddleX(lines[i].b), getMiddleY(lines[i].b), lines[i].p, lineWidth);
+			drawLine(nodes[lines[i].a].x, nodes[lines[i].a].y, nodes[lines[i].b].x, nodes[lines[i].b].y, lines[i].p, lineWidth);
 		}
 		for(i=0; i<nodes.length; i++) {
 			switch(nodes[i].t) {
-				case "w"://TEXT
-					drawText(getMiddleX(i), getMiddleY(i), nodes[i].n, textColor, textSize);
-					break;//BUTTON - SWITCH
-				case "s": case "b":
+				case 13://TEXT
+					drawText(nodes[i].x, nodes[i].y, nodes[i].n, textColor, textSize);
+					break;
+				case 1: case 2://SWITCH, BUTTON
 					drawCircle(nodes[i].x1, nodes[i].y1, nodes[i].r, nodes[i].p, outlineColor, outlineWidth);
 					if(nodes[i].n!="") drawText(nodes[i].x1, nodes[i].y1, nodes[i].n, textNameColor, fontSize);
 					break;
-				case "q"://SOURCE
-					drawCircle(nodes[i].x1, nodes[i].y1, nodes[i].r, nodes[i].p, outlineColor, outlineWidth);
-					drawText(nodes[i].x1, nodes[i].y1, "+", textColor, textSize);
-					break;
-				case "o": case "a": case "t": case "m"://AND - OR - TOGGLE - MONOSTABLE
+				case 4: case 5: case 8: case 9://OR - AND - TOGGLE - MONOSTABLE
 					drawRect(nodes[i].x1, nodes[i].y1, nodes[i].x2, nodes[i].y2, nodes[i].p, outlineColor, outlineWidth);
-					drawText(getMiddleX(i),getMiddleY(i), getFullName(nodes[i].t).toUpperCase(), textNodeColor, fontSize);
+					drawText(nodes[i].x, nodes[i].y, getFullName(nodes[i].t).toUpperCase(), textNodeColor, fontSize);
 					break;
-				case "n": case "r"://NOT - RANDOM
+				case 6: case 10://NOT - RANDOM
 					drawCircle(nodes[i].x1, nodes[i].y1, nodes[i].r, nodes[i].p, outlineColor, outlineWidth);
 					drawText(nodes[i].x1, nodes[i].y1, getFullName(nodes[i].t).toUpperCase(), textNodeColor, fontSize);
 					break;
-				case "d"://DELAY
+				case 7://DELAY
 					drawOval(nodes[i].x1, nodes[i].y1, nodes[i].x2, nodes[i].y2, nodes[i].p, outlineColor, outlineWidth);
-					drawText(getMiddleX(i),getMiddleY(i), nodes[i].d, textNodeColor, fontSize);
+					drawText(nodes[i].x, nodes[i].y, nodes[i].d, textNodeColor, fontSize);
 					break;
-				case "l"://OUTPUT LAMP
+				case 12://OUTPUT LAMP
 					if(zoom<1) drawRect(nodes[i].x1, nodes[i].y1, nodes[i].x2, nodes[i].y2, nodes[i].p, noOutline, Math.log(1/zoom) / Math.log(2));
 					else drawRect(nodes[i].x1, nodes[i].y1, nodes[i].x2, nodes[i].y2, nodes[i].p, noOutline, 0);
-					if(nodes[i].n!="") drawText(getMiddleX(i),getMiddleY(i), nodes[i].n, textColor, fontSize);
+					if(nodes[i].n!="") drawText(nodes[i].x, nodes[i].y, nodes[i].n, textColor, fontSize);
 					break;
-				case "p"://PULSER
+				case 3://PULSER
 					drawCircle(nodes[i].x1, nodes[i].y1, nodes[i].r, nodes[i].p, outlineColor, outlineWidth);
-					drawText(getMiddleX(i),getMiddleY(i), nodes[i].d, textNodeColor, fontSize);
+					drawText(nodes[i].x, nodes[i].y, nodes[i].d, textNodeColor, fontSize);
 					break;
 			}
 		}
-		if(lineStart!==false) {
-			if(nodes[lineStart].s==="c") drawLine(nodes[lineStart].x1, nodes[lineStart].y1, realX, realY, false, lineWidth);
-			else drawLine(getMiddleX(lineStart), getMiddleY(lineStart), realX, realY, false, lineWidth);
-		}
+		if(lineStart!==false) drawLine(nodes[lineStart].x, nodes[lineStart].y, realX, realY, false, lineWidth);
 		updateDebug();
 	}
 	
@@ -1365,7 +1339,7 @@ $(document).ready(function() {
 				if(x>=nodes[i].x1-outlineWidth/2 && nodes[i].x2+outlineWidth/2>=x && y>=nodes[i].y1-outlineWidth/2 && nodes[i].y2+outlineWidth/2>=y) return i;
 			}//oval
 			else if(nodes[i].s==="o") {
-				if((x>=nodes[i].x1+(defaultHeight/2) && nodes[i].x2-(defaultHeight/2)>=x && y>=nodes[i].y1-outlineWidth/2 && nodes[i].y2+outlineWidth/2>=y) || (Math.sqrt(Math.pow(Math.abs(nodes[i].x1+(defaultHeight/2)-x), 2)+Math.pow(Math.abs(getMiddleY(i)-y), 2))<=(defaultHeight+outlineWidth)/2) || (Math.sqrt(Math.pow(Math.abs(nodes[i].x2-(defaultHeight/2)-x), 2)+Math.pow(Math.abs(getMiddleY(i)-y), 2))<=(defaultHeight+outlineWidth)/2)) return i;
+				if((x>=nodes[i].x1+(defaultHeight/2) && nodes[i].x2-(defaultHeight/2)>=x && y>=nodes[i].y1-outlineWidth/2 && nodes[i].y2+outlineWidth/2>=y) || (Math.sqrt(Math.pow(Math.abs(nodes[i].x1+(defaultHeight/2)-x), 2)+Math.pow(Math.abs(nodes[i].y-y), 2))<=(defaultHeight+outlineWidth)/2) || (Math.sqrt(Math.pow(Math.abs(nodes[i].x2-(defaultHeight/2)-x), 2)+Math.pow(Math.abs(nodes[i].y-y), 2))<=(defaultHeight+outlineWidth)/2)) return i;
 			}//circle
 			else {
 				if(Math.sqrt(Math.pow(Math.abs(nodes[i].x1-x), 2)+Math.pow(Math.abs(nodes[i].y1-y), 2))<=nodes[i].r+outlineWidth/2) return i;
@@ -1378,7 +1352,7 @@ $(document).ready(function() {
 	function getClickedLine(x, y) {
 		if(lines.length===0) return false;
 		for(i = lines.length-1; i>=0; i--) {
-			if((Math.sqrt(Math.pow(Math.abs(getMiddleX(lines[i].a)-x), 2)+Math.pow(Math.abs(getMiddleY(lines[i].a)-y), 2))+Math.sqrt(Math.pow(Math.abs(getMiddleX(lines[i].b)-x), 2)+Math.pow(Math.abs(getMiddleY(lines[i].b)-y), 2)))<(Math.sqrt(Math.pow(Math.abs(getMiddleX(lines[i].a)-getMiddleX(lines[i].b)), 2)+Math.pow(Math.abs(getMiddleY(lines[i].a)-getMiddleY(lines[i].b)), 2))+0.08)) return i;
+			if((Math.sqrt(Math.pow(Math.abs(nodes[lines[i].a].x-x), 2)+Math.pow(Math.abs(nodes[lines[i].a].y-y), 2))+Math.sqrt(Math.pow(Math.abs(nodes[lines[i].b].x-x), 2)+Math.pow(Math.abs(nodes[lines[i].b].y-y), 2)))<(Math.sqrt(Math.pow(Math.abs(nodes[lines[i].a].x-nodes[lines[i].b].x), 2)+Math.pow(Math.abs(nodes[lines[i].a].y-nodes[lines[i].b].y), 2))+lineClickRadius)) return i;
 		}
 		return false;
 	}
@@ -1387,21 +1361,21 @@ $(document).ready(function() {
 	function clickOn(x, y) {
 		var clickResult = getClickedNode(x, y);
 		var clickResultLine = false;
-		if(state==="paused" || (state==="running" && (clickResult===false || (nodes[clickResult].t!=="b" && nodes[clickResult].t!=="s")))) {
+		if(state==="paused" || (state==="running" && (clickResult===false || (nodes[clickResult].t!==1 && nodes[clickResult].t!==2)))) {
 			panActivate();
 		}
 		else if(state==="edit") {
 			var clickResultLine = getClickedLine(x, y);
 			if(selected==="line" || lineStart!==false) {//LINE
 				if(lineStart===false && clickResult!==false) {//START LINE
-					if(["s", "b", "n", "q", "d", "o", "a", "p", "r", "t", "m"].includes(nodes[clickResult].t)) {
+					if(design[nodes[clickResult].t].canStartLine) {
 						lineStart = clickResult;
 						lineLast = lineStart;
 						lineStartActivate();
 					}
 				}
 				else if(lineStart!==false) {//END/CREATE LINE
-					if(!(clickResult===false || clickResult===lineStart) && ["o", "a", "n", "d", "l", "r", "t", "m"].includes(nodes[clickResult].t) && !findDuplicateLine(clickResult)) {
+					if(!(clickResult===false || clickResult===lineStart) && design[nodes[clickResult].t].canEndLine && !findDuplicateLine(clickResult)) {
 						lines.push({a:lineStart, b:clickResult});
 						unsaved=true;
 					}
@@ -1415,55 +1389,61 @@ $(document).ready(function() {
 				}
 				else {//CREATE NEW OBJECT
 					switch(selected) {
-						case "s"://SWITCH
-							nodes.push({s:"c", t:selected, n:"Switch", r:defaultRadius, p:false, x1:x, y1:y});
+						case 1://SWITCH
+							nodes.push({t:1, n:"Switch", p:false, x:x, y:y});
 							break;
-						case "b"://BUTTON
-							nodes.push({s:"c", t:selected, n:"Button", r:defaultRadius, p:false, x1:x, y1:y});
+						case 2://BUTTON
+							nodes.push({t:2, n:"Button", p:false, x:x, y:y});
 							break;
-						case "o": case "a"://AND - OR
-							nodes.push({s:"r", t:selected, p:false, x1:x-(defaultWidth/2)+10, y1:y-(defaultHeight/2), x2:x+(defaultWidth/2)-10, y2:y+(defaultHeight/2)});
-							break;
-						case "d"://DELAY
-							var delay=prompt("Set delay: (ticks)", lastDelay);
-							if(isNaN(parseFloat(delay)) || parseFloat(delay)<1) alert("Invalid number!");
-							else {
-								nodes.push({s:"o", t:"d", p:false, d:Math.round(parseFloat(delay)), c:Math.round(parseFloat(delay)), x1:x-(defaultWidth/2), y1:y-(defaultHeight/2), x2:x+(defaultWidth/2), y2:y+(defaultHeight/2)});
-								lastDelay = Math.round(parseFloat(delay));
-							}
-							break;
-						case "n"://NOT
-							nodes.push({s:"c", t:"n", r:defaultRadius, p:true, sp:true, x1:x, y1:y});
-							break;
-						case "l"://OUTPUT LAMP
-							nodes.push({s:"r", t:"l", p:false, n:"", x1:(Math.round(x/defaultHeight)*defaultHeight)-(defaultHeight/2), y1:(Math.round(y/defaultHeight)*defaultHeight)-(defaultHeight/2), x2:(Math.round(x/defaultHeight)*defaultHeight)+(defaultHeight/2), y2:(Math.round(y/defaultHeight)*defaultHeight)+(defaultHeight/2)});
-							break;
-						case "q"://SOURCE
-							nodes.push({s:"c", t:"q", r:defaultRadius, p:true, x1:x, y1:y});
-							break;
-						case "p"://PULSER
+						case 3://PULSER
 							var delay=prompt("Set delay: (ticks)", lastPulser);
 							if(isNaN(parseFloat(delay)) || parseFloat(delay)<1) alert("Invalid number!");
 							else {
-								nodes.push({s:"c", t:"p", r:defaultRadius, p:false, x1:x, y1:y, d:Math.round(parseFloat(delay)), c:Math.round(parseFloat(delay))});
 								lastPulser = Math.round(parseFloat(delay));
+								nodes.push({t:3, p:false, x:x, y:y, d:lastPulser, c:lastPulser});
 							}
 							break;
-						case "r"://RANDOM
-							nodes.push({s:"c", t:"r", r:defaultRadius+14, p:false, x1:x, y1:y, f:false});
+						case 4://OR
+							nodes.push({t:4, p:false, x:x, y:y});
 							break;
-						case "t"://TOGGLE
-							nodes.push({s:"r", t:"t", p:false, sp:false, f:false, x1:x-(defaultWidth/2), y1:y-(defaultWidth/2), x2:x+(defaultWidth/2), y2:y+(defaultWidth/2)});
+						case 5://AND
+							nodes.push({t:5, p:false, x:x, y:y});
 							break;
-						case "m"://MONOSTABLE
-							nodes.push({s:"r", t:"m", p:false, f:false, x1:x-(defaultWidth/2)-16, y1:y-(defaultHeight/2), x2:x+(defaultWidth/2)+16, y2:y+(defaultHeight/2)});
+						case 6://NOT
+							nodes.push({t:6, p:true, sp:true, x:x, y:y});
 							break;
-						case "w"://TEXT
+						case 7://DELAY
+							var delay=prompt("Set delay: (ticks)", lastDelay);
+							if(isNaN(parseFloat(delay)) || parseFloat(delay)<1) alert("Invalid number!");
+							else {
+								lastDelay = Math.round(parseFloat(delay));
+								nodes.push({t:7, p:false, d:lastDelay, c:lastDelay, x:x, y:y});
+							}
+							break;
+						case 8://TOGGLE
+							nodes.push({t:8, p:false, sp:false, f:false, x:x, y:y});
+							break;
+						case 9://MONOSTABLE
+							nodes.push({t:9, p:false, f:false, x:x, y:y});
+							break;
+						case 10://RANDOM
+							nodes.push({t:10, p:false, x:x, y:y, f:false});
+							break;
+						case 11://NOTE
+							alert("Not yet implemented!");
+							break;
+							var note = prompt();
+							nodes.push({t:11, p:false, n:note, x:x, y:y});
+							break;
+						case 12://OUTPUT LAMP
+							nodes.push({t:12, p:false, n:"", x:Math.round(x/gridSpacing)*gridSpacing, y:Math.round(y/gridSpacing)*gridSpacing});
+							break;
+						case 13://TEXT
 							var text = prompt("Enter text:");
 							if(text!=undefined && text!=="" && text!==" ") {
-								ctx.font = textSize+"px Arial";
-								var measure = ctx.measureText(text).width/2;
-								nodes.push({s:"r", t:"w", n:text, x1:Math.round(x-measure), y1:y-(textSize/2), x2:Math.round(x+measure), y2:y+(textSize/2)});
+								ctx.font = design.w.textSize+"px Arial";
+								var measure = parseFloat(ctx.measureText(text).width.toFixed(2));
+								nodes.push({t:13, n:text, x:x, y:y, w:measure});
 							}
 							break;
 					}
@@ -1483,15 +1463,15 @@ $(document).ready(function() {
 			else if(selected==="edit" && (clickResult!==false || clickResultLine!==false)) {
 				if(editObj(clickResult, clickResultLine)) unsaved=true;
 			}//REPLACE OBJECT
-			else if(selected==="replace" && clickResult!==false) {
+			else if((selected==="replace" || selected==="select") && clickResult!==false) {
 				alert("Not yet implemented!");
 				//var oldObj=nodes[clickResult];
 				//unsaved=true;
 			}
 		}//CLICK BUTTON / SWITCH while running
 		else if(state==="running" && clickResult!==false) {
-			if(nodes[clickResult].t==="b") nodes[clickResult].p=true;
-			else if(nodes[clickResult].t==="s") nodes[clickResult].p=!nodes[clickResult].p;
+			if(nodes[clickResult].t===2) nodes[clickResult].p=true;
+			else if(nodes[clickResult].t===1) nodes[clickResult].p=!nodes[clickResult].p;
 		}
 		redraw();
 	}

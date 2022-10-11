@@ -43,7 +43,10 @@
 				<p style="display:inline-block; margin-top:8px;">Show Advanced Info</p>
 				<div id="debugSlider" class="slider"><div></div></div>
 				<br />
-				<input type="button" id="resetPosButton" value="Reset grid position & zoom" style="margin-top:8px;">
+				<p style="display:inline-block; margin-top:8px;">Show Grid</p>
+				<div id="gridSlider" class="slider"><div></div></div>
+				<br />
+				<input type="button" id="resetPosButton" value="Reset grid position & zoom" style="margin-top:16px;">
 			</div>
 			
 			<div id="popup_info" class="popup hidden">
@@ -105,23 +108,61 @@
 		</div>
 		<div id="nodebar">
 			<img src="nodes/line.png" id="line" class="node" title="Connection Line" alt="Line" />
-			<img src="nodes/switch.png" id="s" class="node selected" title="Switch" alt="Switch" />
-			<img src="nodes/button.png" id="b" class="node" title="Button" alt="Button" />
-			<img src="nodes/pulser.png" id="p" class="node" title="Pulser" alt="Pulser" />
-			<img src="nodes/source.png" id="q" class="node" title="Source" alt="Source" />
-			<img src="nodes/or.png" id="o" class="node" title="OR Gate" alt="OR Gate" />
-			<img src="nodes/and.png" id="a" class="node" title="AND Gate" alt="AND Gate" />
-			<img src="nodes/not.png" id="n" class="node" title="NOT Gate" alt="NOT Gate" />
-			<img src="nodes/delay.png" id="d" class="node" title="Delay" alt="Delay" />
-			<img src="nodes/toggle.png" id="t" class="node" title="Toggle" alt="Toggle" />
-			<img src="nodes/monostable.png" id="m" class="node" title="Monostable" alt="Monostable" />
-			<img src="nodes/random.png" id="r" class="node" title="Randomizer" alt="Randomizer" />
-			<img src="nodes/output.png" id="l" class="node" title="Output Lamp" alt="Output" />
-			<img src="nodes/text.png" id="w" class="node" title="Text" alt="Text" />
+			<img src="nodes/switch.png" id="1" class="node selected" title="Switch" alt="Switch" />
+			<img src="nodes/button.png" id="2" class="node" title="Button" alt="Button" />
+			<img src="nodes/pulser.png" id="3" class="node" title="Pulser" alt="Pulser" />
+			<img src="nodes/source.png" id="q" class="node disabled" title="Source" alt="Source" />
+			<img src="nodes/or.png" id="4" class="node" title="OR Gate" alt="OR Gate" />
+			<img src="nodes/and.png" id="5" class="node" title="AND Gate" alt="AND Gate" />
+			<img src="nodes/not.png" id="6" class="node" title="NOT Gate" alt="NOT Gate" />
+			<img src="nodes/delay.png" id="7" class="node" title="Delay" alt="Delay" />
+			<img src="nodes/toggle.png" id="8" class="node" title="Toggle" alt="Toggle" />
+			<img src="nodes/monostable.png" id="9" class="node" title="Monostable" alt="Monostable" />
+			<img src="nodes/random.png" id="10" class="node" title="Randomizer" alt="Randomizer" />
+			<img src="nodes/output.png" id="12" class="node" title="Output Lamp" alt="Output" />
+			<img src="nodes/text.png" id="13" class="node" title="Text" alt="Text" />
 		</div>
 		<div id="canvasContainer">
 			<canvas id="canvas" width="16" height="9" style="background-color:#FFF;"></canvas>
 			<p id="debug" class="hidden"></p>
+			<div id="place" class="">
+				<div id="placeSwitch" class="placeOpt">
+					<p>Switch Name:</p>
+					<input type="text" value="Switch">
+				</div>
+				<div id="placeButton" class="placeOpt hidden">
+					<p>Button Name:</p>
+					<input type="text" value="Button">
+				</div>
+				<div id="placeOutput" class="placeOpt hidden">
+					<p>Output Name:</p>
+					<input type="text">
+				</div>
+				<div id="placePulser" class="placeOpt hidden">
+					<p>Delay between pulses:</p>
+					<input type="text" value="5">
+				</div>
+				<div id="placeDelay" class="placeOpt hidden">
+					<p>Delay:</p>
+					<input type="text" value="5">
+				</div>
+				<div id="placeNot" class="placeOpt hidden">
+					<p>Default power state:</p>
+					<br />
+					<p>Powered</p>
+					<div class="slider activated"><div></div></div>
+				</div>
+				<div id="placeToggle" class="placeOpt hidden">
+					<p>Default power state:</p>
+					<br />
+					<p>Powered</p>
+					<div class="slider"><div></div></div>
+				</div>
+				<div id="placeText" class="placeOpt hidden">
+					<p>Text:</p>
+					<input type="text" value="Text">
+				</div>
+			</div>
 		</div>
 	</body>
 </html>
