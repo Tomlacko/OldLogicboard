@@ -8,6 +8,17 @@ html, body {
 	margin:0px;
 	padding:0px;
 	font-family:Roboto, Sans-serif;
+	user-select:none;
+	-ms-user-select:none;
+	-moz-user-select:-moz-none;
+	-webkit-user-select:none;
+}
+
+input:not(input[type=button]) {
+	user-select:text;
+	-ms-user-select:element;
+	-moz-user-select:text;
+	-webkit-user-select:text;
 }
 
 body {
@@ -57,6 +68,13 @@ input[type=text], input[type=number] {
 
 .noFocus {
 	pointer-events:none;
+}
+
+.selectable, .selectable * {
+	user-select:text;
+	-ms-user-select:element;
+	-moz-user-select:text;
+	-webkit-user-select:text;
 }
 
 .slider {

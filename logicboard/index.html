@@ -13,20 +13,20 @@
 		<div id="popupWrap" class="hidden">
 			<div id="popup">
 				
-				<p id="popupMsg"></p>
+				<p id="popupMsg" class="selectable"></p>
 				<input type="text" id="popupInput" class="hidden" value="" maxlength="100">
 				
-				<div id="popupCancel" class="pButton hidden" style="bottom:0px; left:0px;">
+				<div id="popupCancel" class="pButton hidden selectable" style="bottom:0px; left:0px;">
 					<img src="icons/close.svg" height="20px" width="20px" />
 					<p>Cancel</p>
 				</div>
 				
-				<div id="popupClose" class="pButton hidden" style="bottom:0px; left:54px;">
+				<div id="popupClose" class="pButton hidden selectable" style="bottom:0px; left:54px;">
 					<img src="icons/close.svg" height="20px" width="20px" />
 					<p>Close</p>
 				</div>
 				
-				<div id="popupConfirm" class="pButton hidden" style="bottom:0px; right:0px;">
+				<div id="popupConfirm" class="pButton hidden selectable" style="bottom:0px; right:0px;">
 					<img src="icons/confirm.svg" height="20px" width="20px" />
 					<p>Confirm</p>
 				</div>
@@ -61,27 +61,27 @@
 				<h1>Options</h1>
 				<table id="settingsTable">
 					<tr>
-						<td id="speedSetting">Ticks per second: 100</td>
+						<td id="speedSetting" class="selectable">Ticks per second: 100</td>
 						<td><input type="button" value="Change" id="speed"></td>
 					</tr>
 					<tr>
-						<td>Display Debug Info</td>
+						<td class="selectable">Display Debug Info</td>
 						<td><div id="debugSlider" class="slider"><div></div></div></td>
 					</tr>
 					<tr>
-						<td>Show Grid</td>
+						<td class="selectable">Show Grid</td>
 						<td><div id="gridSlider" class="slider activated"><div></div></div></td>
 					</tr>
 					<tr>
-						<td>Dark Mode</td>
+						<td class="selectable">Dark Mode</td>
 						<td><div id="darkSlider" class="slider"><div></div></div></td>
 					</tr>
 					<tr>
-						<td>Track view position with UNDO</td>
+						<td class="selectable">Track view position with UNDO</td>
 						<td><div id="undoSlider" class="slider"><div></div></div></td>
 					</tr>
 					<tr id="mobileAlign" class="hidden">
-						<td>Auto-Align dragged objects</td>
+						<td class="selectable">Auto-Align dragged objects</td>
 						<td><div id="alignSlider" class="slider"><div></div></div></td>
 					</tr>
 				</table>
@@ -92,7 +92,7 @@
 			<div id="menu_info" class="menu hidden">
 				<h1>Information</h1>
 				<div id="InformationWrapper">
-					<div id="information">
+					<div id="information" class="selectable">
 						<h2>Node description:</h2>
 						<div class="infosection">
 							<img src="nodes/line.png" alt="Connection Line" />

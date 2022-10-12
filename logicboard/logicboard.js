@@ -73,6 +73,51 @@ $(document).ready(function() {
 		ctx.stroke();
 	}
 	
+	function drawSelection(x1, y1, x2, y2, path) {
+		var startX = Math.min(x1, x2);
+		var startY = Math.min(y1, y2);
+		var endX = Math.max(x1, x2);
+		var endY = Math.max(y1, y2);
+		ctx.fillStyle = selectionColor;
+		ctx.strokeStyle=selectionOutline;
+		ctx.lineWidth=(selectionOutlineWidth/2)/zoom;
+		if(path) ctx.beginPath();
+		ctx.rect(startX, startY, endX-startX, endY-startY);
+		ctx.fill();
+		ctx.stroke();
+	}
+	
+	function selectionRect(x1, y1, x2, y2) {
+		selectionStyle();
+		ctx.rect(x1, y1, x2-x1, y2-y1);
+		ctx.fill();
+		ctx.stroke();
+	}
+	function selectionCircle(x, y, r) {
+		selectionStyle();
+		ctx.arc(x, y, r, 0, 2 * Math.PI, false);
+		ctx.fill();
+		ctx.stroke();
+	}
+	function selectionOval(x1, y1, x2, y2){
+		var h=(y2-y1)/2;
+		x1+=h;
+		x2-=h;
+		selectionStyle();
+		ctx.arc(x1, y1+h, h, degToRad(90), degToRad(270), false);
+		ctx.lineTo(x2, y1);
+		ctx.arc(x2, y1+h, h, degToRad(270), degToRad(90), false);
+		ctx.lineTo(x1, y2);
+		ctx.fill();
+		ctx.stroke();
+	}
+	function selectionStyle() {
+		ctx.fillStyle = selectionColor;
+		ctx.strokeStyle = selectionOutline;
+		ctx.lineWidth = selectionOutlineWidth;
+		ctx.beginPath();
+	}
+	
 	function clear() {
 		ctx.clearRect(-canvasX, -canvasY, width/zoom, height/zoom);
 	}
@@ -211,14 +256,19 @@ $(document).ready(function() {
 	var	dragLastY = 0;
 	var startClickX = 0;
 	var startClickY = 0;
+	var startClickXr = 0;
+	var startClickYr = 0;
+	var selectX = 0;
+	var selectY = 0;
 	var globalX = 0;
 	var globalY = 0;
 	var realX = 0;
 	var realY = 0;
-	var dragId = 0;
+	var dragIds = [];
 	var tabID = 0;
 	var dragging = false;
 	var panning = false;
+	var selecting = false;
 	var edgeScrolling = false;
 	var holdingClick = false;
 	var holdingPan = false;
@@ -230,9 +280,10 @@ $(document).ready(function() {
 	var nodes = [];
 	var lines = [];
 	var undoStack = [];
+	var selection = [];
+	var selectedNodes = 0;
 	var undoPointer = -1;
 	var undoTrackView = false;
-	var selection = [];
 	var tickSpeed = 10;
 	var mouseDelay = 10;
 	var selected = 1;
@@ -248,33 +299,36 @@ $(document).ready(function() {
 	var darkMode = false;
 	var showGrid = true;
 	var alignActivated = false;
-	var edgeSize = 20;
+	var edgeSize = 10;
 	var gridSpacing = 42;
 	var gridLineWidth = 1;
 	var gridLineWidthBig = 2;
-	var gridLineColor = "rgba(220, 220, 220, 255)";//#DCDCDC
+	var gridLineColor = "rgba(220, 220, 220, 1)";//#DCDCDC
 	
 	var fontSize = 16;
 	var textSize = 28;
 	var outlineWidth = 4;
 	var lineWidth = 4;
 	var lineClickRadius = 0.08;
+	var selectionOutlineWidth = 4;
 	
-	var whiteColor = "rgba(255, 255, 255, 255)";//#FFF
-	var blackColor = "rgba(0, 0, 0, 255)";//#000
-	var redColor = "rgba(255, 0, 0, 255)";//#F00
-	var blueColor = "rgba(0, 0, 255, 255)";//#00F
-	var greenColor = "rgba(0, 255, 0, 255)";//#0F0
+	var whiteColor = "rgba(255, 255, 255, 1)";//#FFF
+	var blackColor = "rgba(0, 0, 0, 1)";//#000
+	var redColor = "rgba(255, 0, 0, 1)";//#F00
+	var blueColor = "rgba(0, 0, 255, 1)";//#00F
+	var greenColor = "rgba(0, 255, 0, 1)";//#0F0
 	var noOutline = "rgba(0, 0, 0, 0)";
 	var outlineColor = blackColor;
 	
-	var nodeUnpoweredColor = "rgba(200, 200, 200, 255)";//#C8C8C8
+	var nodeUnpoweredColor = "rgba(200, 200, 200, 1)";//#C8C8C8
 	var nodePoweredColor = redColor;
 	var lineUnpoweredColor = blackColor;
-	var lineUnpoweredGradient = "rgba(150, 150, 150, 255)";//#969696
+	var lineUnpoweredGradient = "rgba(150, 150, 150, 1)";//#969696
 	var linePoweredColor = redColor;
-	var linePoweredGradient = "rgba(255, 150, 150, 255)";//#FF9696
-	var textNodeColor = "rgba(128, 128, 128, 255)";//#808080
+	var linePoweredGradient = "rgba(255, 150, 150, 1)";//#FF9696
+	var textNodeColor = "rgba(128, 128, 128, 1)";//#808080
+	var selectionColor = "rgba(100, 200, 240, 0.5)";//#64C8F0
+	var selectionOutline = "rgba(50, 150, 255, 0.8)";//#3296FF
 	
 	var design = [
 		null,
@@ -456,7 +510,7 @@ $(document).ready(function() {
 	
 	//prevent button dragging and highlighting
 	$(document).on(mobile?"touchstart":"mousedown", function(e) {
-		if((e.type!=="touchstart" || e.which===1) && !$(e.target).is("input")) {
+		if((e.type!=="touchstart" || e.which===1) && !$(e.target).is("input") && !$(e.target).hasClass("selectable") && $(e.target).parents(".selectable").length===0) {
 			e.preventDefault();
 		}
 		if($(document.activeElement).parent().parent().is("#place")) $(".placeOpt:not(.hidden) input").blur();
@@ -546,10 +600,15 @@ $(document).ready(function() {
 	//show save project
 	$("#save").on("click", function() {
 		if(state!=="edit") stopSimulation();
-		$("#overlay, #menu_save").removeClass("hidden");
-		$("#exportSave").val(btoa(JSON.stringify([nodes, lines, [fileVersion, canvasX, canvasY, zoom, tickSpeed]])));
-		$("#downloadName").focus();
-		setTimeout(function() {$("#downloadName").select();}, 1);
+		try {
+			$("#exportSave").val(getSave());
+			$("#overlay, #menu_save").removeClass("hidden");
+			$("#downloadName").focus();
+			setTimeout(function() {$("#downloadName").select();}, 1);
+		}
+		catch(e) {
+			alert("Error - cannot save file!\n\n"+e.message);
+		}
 	});
 	
 	//clipboard copy
@@ -562,15 +621,26 @@ $(document).ready(function() {
 		}
 	});
 	
+	//Generate Save File
+	function getSave() {
+		return btoa(encodeURI(JSON.stringify([nodes, lines, [fileVersion, canvasX, canvasY, zoom, tickSpeed]])));
+	}
+	
 	//DOWNLOAD PROJECT
 	$("#downloadButton").on("click", function() {
-		var filename=$("#downloadName").val();
-		if(filename===false || filename==="" || filename==null) return;
+		var filename=formatText($("#downloadName").val());
+		if(filename==="") popupMsg("Invalid file name.");
 		else if(filename.length>50) popupMsg("The file name is too long!");
 		else {
-			downloadProject(filename+".lgb", btoa(JSON.stringify([nodes, lines, [fileVersion, canvasX, canvasY, zoom, tickSpeed]])));
-			$("#overlay, #menu_save").addClass("hidden");
-			save();
+			try {
+				var savefile = 
+				downloadProject(filename+".lgb", getSave());
+				$("#overlay, #menu_save").addClass("hidden");
+				save();
+			}
+			catch(e) {
+				alert("Error - cannot save file!\n\n"+e.message);
+			}
 		}
 	});
 	
@@ -640,7 +710,7 @@ $(document).ready(function() {
 		if(state!=="edit") stopSimulation();
 		var loadArr=false;
 		try {
-			loadArr = JSON.parse(atob(loadProject));
+			loadArr = JSON.parse(decodeURI(atob(loadProject)));
 		}
 		catch(err) {
 			popupMsg("This is not a LogicBoard file!");
@@ -729,17 +799,17 @@ $(document).ready(function() {
 			design[13].textColor = blackColor;
 			outlineColor = blackColor;
 			lineUnpoweredColor = blackColor;
-			lineUnpoweredGradient = "rgba(150, 150, 150, 255)";
-			gridLineColor = "rgba(220, 220, 220, 255)";
+			lineUnpoweredGradient = "rgba(150, 150, 150, 1)";
+			gridLineColor = "rgba(220, 220, 220, 1)";
 		}
 		else {
 			darkMode=true;
 			$("#canvas, #debug, #nodebarContainer").addClass("dark");
 			design[13].textColor = whiteColor;
-			outlineColor = "rgba(70, 70, 70, 255)";
-			lineUnpoweredColor = whiteColor;
-			lineUnpoweredGradient = "rgba(50, 50, 50, 255)";
-			gridLineColor = "rgba(50, 50, 50, 255)";
+			outlineColor = "rgba(70, 70, 70, 1)";
+			lineUnpoweredColor = "rgba(30, 30, 30, 1)";
+			lineUnpoweredGradient = "rgba(190, 190, 190, 1)";
+			gridLineColor = "rgba(50, 50, 50, 1)";
 		}
 		redraw();
 	});
@@ -771,7 +841,7 @@ $(document).ready(function() {
 	//TOOLBAR - Select item
 	$("#delete, #edit, #replace, #select").on("click", function() {
 		if(state==="edit" && !$(this).hasClass("disabled")) {
-			if(lineStop()) redraw();
+			if(lineStop() || selectStop()) redraw();
 			if($(this).hasClass("selected")) {
 				$(this).removeClass("selected");
 				selected=selectedNode;
@@ -788,7 +858,7 @@ $(document).ready(function() {
 	});
 	$(".node").on("click", function() {
 		if(state==="edit" && !$(this).hasClass("disabled")) {
-			if(lineStop()) redraw();
+			if(lineStop() || selectStop()) redraw();
 			if($(this).hasClass("selected") && selected!==selectedNode) {
 				$("#"+selected).removeClass("selected");
 				selected=selectedNode;
@@ -1000,7 +1070,7 @@ $(document).ready(function() {
 		if($("#canvas:hover").length!=0) var obj = getClickedNode(canX, canY);
 		else var obj=false;
 		//KEY SHIFT - align to grid
-		if(keyID===16 && state==="edit" && obj!==false && !dragging && !lastSHIFT) {
+		if(keyID===16 && state==="edit" && obj!==false && !lastSHIFT && !selecting) {
 			var oldX = nodes[obj].x;
 			var oldY = nodes[obj].y;
 			var half = gridSpacing/2;
@@ -1021,18 +1091,22 @@ $(document).ready(function() {
 		}//KEY ~ - toggle debug info
 		else if(keyID===192) {
 			$("#debugSlider").trigger("click");
-		}//KEY Q/DELETE - delete object
+		}//KEY Q & DELETE - delete object
 		else if((keyID===46 || keyID===81) && state==="edit" && !holdingClick && lineStart===false) {
+			//if(selectedNodes>0) selectionDelete();
 			if(obj!==false) {
-				deleteObj(obj);
+				if(selectedNodes>0 && selection[obj]) selectionDelete();
+				else deleteObj(obj);
 			}
 			else {
 				var clickedLine = getClickedLine(canX, canY);
-				if(clickedLine!==false) {
-					lines.splice(clickedLine, 1);
-					addUndo();
+				if(clickedLine!==false) lines.splice(clickedLine, 1);
+				else {
+					if(selectedNodes>0) selectionDelete();
+					else return;
 				}
 			}
+			addUndo();
 			redraw();
 		}//KEY R - replace object/line
 		else if(keyID===82 && !holdingClick && state==="edit") {
@@ -1092,21 +1166,20 @@ $(document).ready(function() {
 		}//KEY CTRL+Z - Undo
 		else if(keyID===90 && holdingCTRL && !holdingClick && state==="edit") {
 			lineStop();
+			selectStop();
 			undo();
-		}//KEY CTRL+Z - Undo
+		}//KEY CTRL+Y - Redo
 		else if(keyID===89 && holdingCTRL && !holdingClick && state==="edit") {
 			lineStop();
+			selectStop();
 			redo();
 		}//KEY SPACE - Start/Stop Simulation
 		else if(keyID===32 && !holdingClick) {
-			if(state==="edit") {
-				lineStop();
-				startSimulation();
-			}
+			if(state==="edit") startSimulation();
 			else stopSimulation();
 		}//KEY Esc - Cancel
 		else if(keyID===27) {
-			if(lineStop()) redraw();
+			if(lineStop() || selectStop()) redraw();
 			else if(state!=="edit" && !holdingClick) stopSimulation();
 		}//KEY TAB - Cycle through nodes
 		else if(keyID===9 && !holdingClick) {
@@ -1128,8 +1201,8 @@ $(document).ready(function() {
 				ctx.translate(Math.round(adjustX-nodeX), Math.round(adjustY-nodeY));
 				redraw();
 			}
-		}
-		else if(keyID>=48 && keyID<=57 && state==="edit") {
+		}//HOTKEYS 0-9
+		else if(keyID>=48 && keyID<=57 && state==="edit" && !holdingClick) {
 			if(keyID===48) $("#line").trigger("click");
 			else $("#"+(keyID-48)).trigger("click");
 		}
@@ -1155,14 +1228,11 @@ $(document).ready(function() {
 				holdingClick = true;
 				startClickX = globalX;
 				startClickY = globalY;
+				startClickXr = realX;
+				startClickYr = realY;
 				if(state==="edit") {//STATE = edit
-					if(selected==="select") {
-						//SELECTION DRAW
-					}
-					else {//ALL TOOLS
-						enableMainMoveStart(); 
-						enableMainClickEnd();
-					}
+					enableMainMoveStart(); 
+					enableMainClickEnd();
 				}
 				else {//STATE = running/paused
 					var objID = getClickedNode(realX, realY);
@@ -1177,7 +1247,7 @@ $(document).ready(function() {
 						}
 					}
 					enableAltMove();
-					enableAltClickEnd()
+					enableAltClickEnd();
 				}
 			}
 		});
@@ -1187,10 +1257,19 @@ $(document).ready(function() {
 			if(Math.abs(startClickX-globalX)>(mobile?4:2) || Math.abs(startClickY-globalY)>(mobile?4:2)) {
 				$("#canvas").off(mobile?"touchend.main":"mouseup.main");
 				$("#canvas").off(mobile?"touchmove.start":"mousemove.start");
+				if(selected==="select") {
+					selecting = true;
+					selectX = startClickXr;
+					selectY = startClickYr;
+					selectionStartActivate();
+				}
+				else {
+					var objID = getClickedNode(startClickXr, startClickYr);
+					if(objID===false || lineStart!==false) panActivate();
+					else if(selectedNodes>1 && selection[objID]) selectionDrag();
+					else dragObj(objID);
+				}
 				enableAltClickEnd();
-				var objID = getClickedNode(realX, realY);
-				if(objID===false || lineStart!==false) panActivate();
-				else dragObj(objID);
 			}
 		});
 	}//alternative mouse move - state not edit
@@ -1242,6 +1321,10 @@ $(document).ready(function() {
 				panning=false;
 			}
 			holdingClick = false;
+			if(selectStop()) {
+				edgeScrollStop();
+				selectArea();
+			}
 		}
 	});
 	
@@ -1275,31 +1358,32 @@ $(document).ready(function() {
 		dragLastX = realX;
 		dragLastY = realY;
 		$("#canvas").on(mobile?"touchmove.drag":"mousemove.drag", function(e) {
-			e.preventDefault();
 			edgeScrollStart();
-			if(holdingSHIFT || alignActivated) {
-				var half = gridSpacing/2;
-				nodes[dragId].x=Math.round(realX/half)*half;
-				nodes[dragId].y=Math.round(realY/half)*half;
-				dragLastX = realX;
-				dragLastY = realY;
-			}
-			else dragMovePos();
+			dragMovePos();
 			redraw();
 		});
 	}
 	function dragMovePos() {
 		var moveX = realX-dragLastX;
 		var moveY = realY-dragLastY;
-		nodes[dragId].x+=moveX;
-		nodes[dragId].y+=moveY;
+		if(dragIds.length===1 && (holdingSHIFT || alignActivated)) {
+			var half = gridSpacing/2;
+			nodes[dragIds[0]].x=Math.round(realX/half)*half;
+			nodes[dragIds[0]].y=Math.round(realY/half)*half;
+		}
+		else {
+			for(var i=0; i<dragIds.length; i++) {
+				nodes[dragIds[i]].x+=moveX;
+				nodes[dragIds[i]].y+=moveY;
+			}
+		}
 		dragLastX = realX;
 		dragLastY = realY;
 	}
 	
 	//AUTOSCROLL Canvas when mouse on edge
 	function edgeScrollStart() {
-		if(globalX<edgeSize || globalX>(width-edgeSize) || globalY<edgeSize || globalY>(height-edgeSize)) {
+		if(!panning && (globalX<edgeSize || globalX>(width-edgeSize) || globalY<edgeSize || globalY>(height-edgeSize))) {
 			if(!edgeScrolling) {
 				edgeScrolling=true;
 				edgeScroll();
@@ -1339,11 +1423,39 @@ $(document).ready(function() {
 		edgeScrolling=false;
 	}
 	
+	//MOUSE start selection - mousemove
+	function selectionStartActivate() {
+		$("#canvas").on(mobile?"touchmove.select":"mousemove.select", function() {
+			edgeScrollStart();
+			redraw();
+		});
+	}
+	
 	//MOUSE start line - mousemove
 	function lineStartActivate() {
 		$("#canvas").on(mobile?"touchmove.line":"mousemove.line", function() {
 			redraw();
 		});
+	}
+	
+	//Stop line
+	function lineStop() {
+		if(lineStart!==false) {
+			lineStart=false;
+			$("#canvas").off(mobile?"touchmove.line":"mousemove.line");
+			return true;
+		}
+		return false;
+	}
+	
+	//Stop selection
+	function selectStop() {
+		if(selecting) {
+			selecting=false;
+			$("#canvas").off(mobile?"touchmove.select":"mousemove.select");
+			return true;
+		}
+		return false;
 	}
 	
 	//MOUSE pan / translate canvas - mousemove
@@ -1372,7 +1484,6 @@ $(document).ready(function() {
 		$("#popupCancel").off("click");
 		$("#popupWrap").addClass("hidden");
 		$("#popupInput").addClass("hidden");
-		//$("#popupInput").val("");
 		$("#popupConfirm").addClass("hidden");
 		$("#popupClose").addClass("hidden");
 		$("#popupCancel").addClass("hidden");
@@ -1477,6 +1588,7 @@ $(document).ready(function() {
 		$(".node, #EditControls .button").addClass("disabled");
 		$("#place").addClass("hidden");
 		lineStop();
+		selectStop();
 		state="running";
 		TimeoutID = setTimeout(Tick, tickSpeed);
 		redraw();
@@ -1723,6 +1835,7 @@ $(document).ready(function() {
 				}
 			}
 			deleteObj(id);
+			addUndo();
 		}
 		else {
 			var newObj = createNewObj(selectedNode, nodes[id].x, nodes[id].y);
@@ -1764,7 +1877,7 @@ $(document).ready(function() {
 		return false;
 	}
 	
-	//SHIFT / recalculate IDs after object delete/drag
+	//REORGANIZE IDs after object delete/drag
 	function reorganize(pos) {
 		var uptop = [];
 		for(var i=0; i<lines.length; i++) {
@@ -1855,7 +1968,7 @@ $(document).ready(function() {
 				}
 				else {
 					ctx.font = design[type].textSize+"px Arial";
-					var measure = parseFloat(ctx.measureText(txt).width.toFixed(2));
+					var measure = toFixed(ctx.measureText(txt).width, 2);
 					return {t:13, n:txt, x:x, y:y, w:measure};
 				}
 				break;
@@ -1873,8 +1986,19 @@ $(document).ready(function() {
 			reorganize(id);
 		}
 		else nodes.splice(id, 1);
+		if(selection.length>0) {
+			if(selection[id]) selectedNodes--;
+			if(selectedNodes===0) selection=[];
+			else selection.splice(id, 1);
+		}
 		tabID=0;
-		addUndo();
+	}
+	function selectionDelete() {
+		var i = 0;
+		while(i<selection.length) {
+			if(selection[i]) deleteObj(i);
+			else i++;
+		}
 	}
 	
 	//EDIT object
@@ -1921,7 +2045,7 @@ $(document).ready(function() {
 						if(txt==="" || txt===nodes[id].n || txt>100) errorBlink();
 						else {
 							ctx.font = textSize+"px Arial";
-							var measure = parseFloat(ctx.measureText(txt).width.toFixed(2));
+							var measure = toFixed(ctx.measureText(txt).width, 2);
 							nodes[id].n = txt;
 							nodes[id].w = measure;
 							addUndo();
@@ -1947,27 +2071,64 @@ $(document).ready(function() {
 	
 	//DRAG object
 	function dragObj(id) {
-		if(id<nodes.length-1) {
-			var obj = nodes[id];
-			nodes.splice(id, 1);
-			nodes.push(obj);
-			reorganize(id);
+		if(id<nodes.length-1) uptopNode(id);
+		dragIds=[nodes.length-1];
+		dragging = true;
+		tabID = 0;
+		redraw();
+		nodeMoveActivate();
+	}
+	function selectionDrag() {
+		var len = selection.length;
+		var j=0;
+		for(var i=0; i<len; i++) {
+			if(selection[j]) uptopNode(j);
+			else j++;
 		}
-		dragId=nodes.length-1;
+		dragIds = [];
+		for(var i=0; i<selectedNodes; i++) {
+			dragIds.push(nodes.length-1-i);
+		}
 		dragging = true;
 		tabID = 0;
 		redraw();
 		nodeMoveActivate();
 	}
 	
-	//Stop line
-	function lineStop() {
-		if(lineStart!==false) {
-			lineStart=false;
-			$("#canvas").off(mobile?"touchmove.line":"mousemove.line");
-			return true;
+	//BRING NODE ON TOP OF STACK
+	function uptopNode(id) {
+		var obj = nodes[id];
+		nodes.splice(id, 1);
+		nodes.push(obj);
+		reorganize(id);
+		if(selectedNodes>0) {
+			var sel = selection[id];
+			selection.splice(id, 1);
+			selection.push(sel);
 		}
-		return false;
+	}
+	
+	//SELECT AREA
+	function selectArea() {
+		var x1=Math.min(realX, selectX);
+		var y1=Math.min(realY, selectY);
+		var x2=Math.max(realX, selectX);
+		var y2=Math.max(realY, selectY);
+		var newSelection = [];
+		selectedNodes=0;
+		for(var i = 0; i<nodes.length; i++) {
+			if(holdingCTRL && selection.length>0 && selection[i]) {
+				newSelection.push(true);
+				selectedNodes++;
+			}
+			else if(nodes[i].x>x1 && nodes[i].x<x2 && nodes[i].y>y1 && nodes[i].y<y2) {
+				newSelection.push(true);
+				selectedNodes++;
+			}
+			else newSelection.push(false);
+		}
+		selection = newSelection;
+		redraw();
 	}
 	
 	//Draw grid
@@ -1992,7 +2153,7 @@ $(document).ready(function() {
 		if(showGrid && zoom>=0.125) drawGrid();
 		for(var i=0; i<lines.length; i++) {
 			drawLine(nodes[lines[i].a].x, nodes[lines[i].a].y, nodes[lines[i].b].x, nodes[lines[i].b].y, lines[i].p);
-			//trying to skip off-screen lines would be more resource-intensive than not doing it
+			//trying to skip off-screen lines would be more resource-intensive than actual drawing
 		}
 		onScreenNodes=0;
 		for(var i=0; i<nodes.length; i++) {
@@ -2006,7 +2167,7 @@ $(document).ready(function() {
 			onScreenNodes++;
 			
 			//DRAW NODES
-			if(design[nodes[i].t].shape==="rect" && nodes[i].t!==13) {
+			if(design[nodes[i].t].shape==="rect" && nodes[i].t!==13) {//13=TEXT
 				drawRect(nodes[i].x-getSizeX(i), nodes[i].y-getSizeY(i), nodes[i].x+getSizeX(i), nodes[i].y+getSizeY(i), nodes[i].p, design[nodes[i].t].outline);
 			}
 			else if(design[nodes[i].t].shape==="circle") {
@@ -2015,6 +2176,7 @@ $(document).ready(function() {
 			else if(design[nodes[i].t].shape==="oval") {
 				drawOval(nodes[i].x-getSizeX(i), nodes[i].y-getSizeY(i), nodes[i].x+getSizeX(i), nodes[i].y+getSizeY(i), nodes[i].p, design[nodes[i].t].outline);
 			}
+			
 			//DRAW NODE TEXT
 			if([1, 2, 11, 12, 13].includes(nodes[i].t)) {//switch, button, note, output, text
 				var txt = nodes[i].n;
@@ -2022,28 +2184,37 @@ $(document).ready(function() {
 			else if([4, 5, 6, 8, 9, 10].includes(nodes[i].t)) {//or, and, not, toggle, monostable, random
 				var txt = design[nodes[i].t].fullName;
 			}
-			else if([3, 7].includes(nodes[i].t)) {
+			else if([3, 7].includes(nodes[i].t)) {//pulser, delay
 				var txt = nodes[i].d;
 			}
 			if(txt!=="") {
 				if(nodes[i].t===12) {//DRAW TEXT ABOVE OUTPUT WHEN TOO LONG
 					ctx.font = design[nodes[i].t].textSize+"px Arial";
-					var measure = parseFloat(ctx.measureText(txt).width.toFixed(2));
+					var measure = toFixed(ctx.measureText(txt).width, 2);
 					if(measure>design[12].width) drawText(nodes[i].x, nodes[i].y-(design[12].height/2)-(design[12].textSize/2)-2, txt, design[nodes[i].t].textColor, design[nodes[i].t].textSize);
 					else drawText(nodes[i].x, nodes[i].y, txt, design[nodes[i].t].textColor, design[nodes[i].t].textSize);
 				}
 				/*// DRAW TEXT ABOVE INPUTS WHEN TOO LONG
 				else if([1, 2].includes(nodes[i].t)) {
 					ctx.font = design[nodes[i].t].textSize+"px Arial";
-					var measure = parseFloat(ctx.measureText(txt).width.toFixed(2))/2;
+					var measure = toFixed(ctx.measureText(txt).width, 2)/2;
 					if(measure>getSizeR(i)) drawText(nodes[i].x, nodes[i].y-(getRadius(i))-(design[nodes[i].t].textSize/2)-2, txt, design[nodes[i].t].textColor, design[nodes[i].t].textSize);
 					else drawText(nodes[i].x, nodes[i].y, txt, design[nodes[i].t].textColor, design[nodes[i].t].textSize);
 				}
 				*/
-				else drawText(nodes[i].x, nodes[i].y, txt, design[nodes[i].t].textColor, design[nodes[i].t].textSize);
+				else drawText(nodes[i].x, nodes[i].y, txt, design[nodes[i].t].textColor, design[nodes[i].t].textSize); 
+			}
+			
+			//DRAW SELECTION OVER NODES
+			if(selectedNodes>0 && selection[i]) {
+				if(design[nodes[i].t].shape==="circle") selectionCircle(nodes[i].x, nodes[i].y, getRadius(i));
+				else if(design[nodes[i].t].shape==="oval") selectionOval(nodes[i].x-getWidth(i)/2, nodes[i].y-getHeight(i)/2, nodes[i].x+getWidth(i)/2, nodes[i].y+getHeight(i)/2);
+				else if(nodes[i].t===13) selectionRect(nodes[i].x-getWidth(i)/2-4, nodes[i].y-getHeight(i)/2-4, nodes[i].x+getWidth(i)/2+4, nodes[i].y+getHeight(i)/2+4);
+				else selectionRect(nodes[i].x-getWidth(i)/2, nodes[i].y-getHeight(i)/2, nodes[i].x+getWidth(i)/2, nodes[i].y+getHeight(i)/2);
 			}
 		}
 		if(lineStart!==false) drawLine(nodes[lineStart].x, nodes[lineStart].y, realX, realY, false);
+		if(selecting) drawSelection(selectX, selectY, realX, realY, true);
 		updateDebug();
 	}
 	
@@ -2086,8 +2257,32 @@ $(document).ready(function() {
 	function clickOn(x, y) {
 		var clickResult = getClickedNode(x, y);
 		
-		//Click with line
-		if(selected==="line" || (selected==="edit" && lineStart!==false)) {
+		//Click with selection
+		if(selected==="select") {
+			if(clickResult===false) {
+				if(selectedNodes>0) {
+					selection = [];
+					selectedNodes = 0;
+				}
+				else return;
+			}
+			else if(holdingCTRL && selectedNodes>0) {
+				if(selection[clickResult]) selectedNodes--;
+				else selectedNodes++;
+				selection[clickResult]=!selection[clickResult];
+				if(selectedNodes===0) selection = [];
+			}
+			else if(selectedNodes===1 && selection[clickResult]) return;
+			else {
+				selection = [];
+				selectedNodes = 1;
+				for(var i = 0; i<nodes.length; i++) {
+					if(i===clickResult) selection.push(true);
+					else selection.push(false);
+				}
+			}
+		}//Click with line
+		else if(selected==="line" || (selected==="edit" && lineStart!==false)) {
 			if(clickResult===false) {//Click on empty
 				if(!lineStop()) return;
 				else {
@@ -2107,15 +2302,24 @@ $(document).ready(function() {
 			}
 			else return;
 		}//Click with node
-		else if(!["select", "edit", "delete", "replace"].includes(selected)) {
+		else if(![/*"select", */"edit", "delete", "replace"].includes(selected)) {
 			if(clickResult===false) {//CREATE NEW OBJECT
 				var newObj = createNewObj(selectedNode, x, y);
 				if(newObj===false) return;
 				else nodes.push(newObj);
+				selection = [];
+				selectedNodes=0;
 				tabID=0;
 				addUndo();
 			}
-			else return;
+			else {//Bring object on top of stack (foreground)
+				if(clickResult<nodes.length-1) {
+					uptopNode(clickResult);
+					tabID = 0;
+					addUndo();
+				}
+				else return;
+			}
 		}
 		else {//ALL OTHER TOOLS
 			var clickResultLine = getClickedLine(x, y);
@@ -2128,7 +2332,9 @@ $(document).ready(function() {
 			}//DELETE Object/Line
 			else if(selected==="delete") {
 				if(clickResult!==false) {//DELETE OBJECT
-					deleteObj(clickResult);
+					if(selectedNodes>0 && selection[clickResult]) selectionDelete();
+					else deleteObj(clickResult);
+					addUndo();
 				}
 				else if(clickResultLine!==false) {//DELETE LINE
 					lines.splice(clickResultLine, 1);
