@@ -223,6 +223,11 @@ $(window).load(function() {
 		return parseFloat(num.toFixed(pos));
 	}
 	
+	//Get time passed (secs)
+	function getTimePassed(time) {
+		return (Date.now()-time)/1000;
+	}
+	
 	//resize canvas to window
 	$(window).on("resize", function() {
 		ctx.canvas.height = Math.max($(window).height()-($("#panel").outerHeight()+$("#nodebarContainer").outerHeight()), 71);//137
@@ -258,6 +263,8 @@ $(window).load(function() {
 	var canvasY = 0;
 	var dragLastX = 0;
 	var	dragLastY = 0;
+	var dragFakeX = 0;
+	var dragFakeY = 0;
 	var startClickX = 0;
 	var startClickY = 0;
 	var startClickXr = 0;
@@ -272,7 +279,13 @@ $(window).load(function() {
 	var clipboardY = 0;
 	var tabID = 0;
 	var dragId = 0;
+	var undoPointer = -1;
 	
+	var undoTrackView = false;
+	var darkMode = false;
+	var showGrid = true;
+	var debugShown = false;
+	var alignActivated = false;
 	var dragging = false;
 	var panning = false;
 	var selecting = false;
@@ -292,8 +305,8 @@ $(window).load(function() {
 	var clipboardNodes = [];
 	var clipboardLines = [];
 	var totalSelected = 0;
-	var undoPointer = -1;
-	var undoTrackView = false;
+	
+	
 	var tickSpeed = 10;
 	var mouseDelay = 10;
 	var selected = 1;
@@ -301,15 +314,14 @@ $(window).load(function() {
 	var state = "edit";
 	var TimeoutID = 0;
 	var ticks = 0;
+	var TPS = 0;
+	var lastTick = 0;
+	var lastClick = 0;
 	var onScreenNodes = 0;
 	var savePointer = 0;
 	var BlinkTimer;
 	var edgeScrollTimer;
 	var popupShown = "";
-	var darkMode = false;
-	var showGrid = true;
-	var debugShown = false;
-	var alignActivated = false;
 	var edgeSize = 14;
 	var gridSpacing = 42;
 	var half = gridSpacing/2;
@@ -330,7 +342,6 @@ $(window).load(function() {
 	var greenColor = "rgba(0, 255, 0, 1)";//#0F0
 	var noOutline = "rgba(0, 0, 0, 0)";//transparent
 	var outlineColor = blackColor;
-	
 	var nodeUnpoweredColor = "rgba(200, 200, 200, 1)";//#C8C8C8
 	var nodePoweredColor = redColor;
 	var lineUnpoweredColor = blackColor;
@@ -916,6 +927,8 @@ $(window).load(function() {
 		else if($(this).attr("id")==="step") {
 			if(state==="paused") {
 				Tick();
+				TPS=0;
+				lastTick=0;
 				clearTimeout(TimeoutID);
 			}
 		}
@@ -924,6 +937,8 @@ $(window).load(function() {
 		state="paused";
 		$("#pause").attr("src", "icons/continue.svg");
 		$("#step").removeClass("disabled");
+		TPS=0;
+		lastTick=0;
 		clearTimeout(TimeoutID);
 	}
 	function unpauseSimulation() {
@@ -1123,13 +1138,12 @@ $(window).load(function() {
 						nodes[selectedNodes[i]].y+=adjustY;
 						uptopNode(selectedNodes[i]);
 					}
+					selectedNodes.numSort();
 				}
 				else {
 					nodes[obj].x+=adjustX;
 					nodes[obj].y+=adjustY;
-					uptopNode(obj);
 				}
-				selectedNodes.numSort();
 				tabID = 0;
 				addUndo();
 				redraw();
@@ -1304,6 +1318,10 @@ $(window).load(function() {
 		}//KEY Esc - Cancel
 		else if(keyID===27) {
 			if(lineStop() || selectStop()) redraw();
+			else if(selectedNodes.length>0) {
+				selectionCancel();
+				redraw();
+			}
 			else if(state!=="edit" && !holdingClick) stopSimulation();
 		}//KEY TAB - Cycle through nodes
 		else if(keyID===9 && !holdingClick) {
@@ -1412,6 +1430,7 @@ $(window).load(function() {
 				$("#canvas").off(mobile?"touchend.main":"mouseup.main");
 				setTimeout(mainClickEnable, mouseDelay);
 				clickOn(realX, realY);
+				lastClick = Date.now();
 			}
 		});
 	}//stop holding mouse - alternative mouse up
@@ -1482,6 +1501,8 @@ $(window).load(function() {
 		$("#canvas").addClass("cursor_move");
 		dragLastX = realX;
 		dragLastY = realY;
+		dragFakeX = nodes[dragId].x;
+		dragFakeY = nodes[dragId].y;
 		$("#canvas").on(mobile?"touchmove.drag":"mousemove.drag", function(e) {
 			edgeScrollStart();
 			dragMovePos();
@@ -1491,10 +1512,12 @@ $(window).load(function() {
 	function dragMovePos() {
 		var moveX = realX-dragLastX;
 		var moveY = realY-dragLastY;
+		dragFakeX+=moveX;
+		dragFakeY+=moveY;
 		if(selectedNodes.length>1 && selection[dragId]) {
 			if(holdingSHIFT || alignActivated) {
-				var adjustX = (Math.round(realX/half)*half)-nodes[dragId].x;
-				var adjustY = (Math.round(realY/half)*half)-nodes[dragId].y;
+				var adjustX = (Math.round(dragFakeX/half)*half)-nodes[dragId].x;
+				var adjustY = (Math.round(dragFakeY/half)*half)-nodes[dragId].y;
 				for(var i=0; i<selectedNodes.length; i++) {
 					nodes[selectedNodes[i]].x+=adjustX;
 					nodes[selectedNodes[i]].y+=adjustY;
@@ -1509,12 +1532,12 @@ $(window).load(function() {
 		}
 		else {
 			if(holdingSHIFT || alignActivated) {
-				nodes[dragId].x=Math.round(realX/half)*half;
-				nodes[dragId].y=Math.round(realY/half)*half;
+				nodes[dragId].x=Math.round(dragFakeX/half)*half;
+				nodes[dragId].y=Math.round(dragFakeY/half)*half;
 			}
 			else {
-				nodes[dragId].x+=moveX;
-				nodes[dragId].y+=moveY;
+				nodes[dragId].x=dragFakeX;
+				nodes[dragId].y=dragFakeY;
 			}
 		}
 		dragLastX = realX;
@@ -1615,8 +1638,8 @@ $(window).load(function() {
 		$("#canvas").on(mobile?"touchmove.pan":"mousemove.pan", function() {
 			var canX=globalX/zoom;
 			var canY=globalY/zoom;
-			canvasX=canvasX+(canX-panLastX);
-			canvasY=canvasY+(canY-panLastY);
+			canvasX+=canX-panLastX;
+			canvasY+=canY-panLastY;
 			ctx.translate(canX-panLastX, canY-panLastY);
 			panLastX = canX;
 			panLastY = canY;
@@ -1727,6 +1750,8 @@ $(window).load(function() {
 	function stopSimulation() {
 		clearTimeout(TimeoutID);
 		ticks=0;
+		TPS=0;
+		lastTick=0;
 		state="edit";
 		$("#StartControls").removeClass("hidden");
 		$("#StopControls").addClass("hidden");
@@ -1839,6 +1864,8 @@ $(window).load(function() {
 					break;
 			}
 		}
+		if(lastTick!==0) TPS = 1/getTimePassed(lastTick);
+		lastTick = Date.now();
 		redraw();
 	}
 	
@@ -2414,9 +2441,9 @@ $(window).load(function() {
 	}
 	
 	//Find duplicate line - prevent creating multiple identical lines
-	function findDuplicateLine(id) {
+	function findDuplicateLine(st, end) {
 		for(var i=0; i<lines.length; i++) {
-			if(lines[i].a===lineStart && lines[i].b===id) return true;
+			if(lines[i].a===st && lines[i].b===end) return true;
 		}
 		return false;
 	}
@@ -2465,8 +2492,7 @@ $(window).load(function() {
 		clear();
 		if(showGrid && zoom>=0.125) drawGrid();
 		for(var i=0; i<lines.length; i++) {
-			drawLine(nodes[lines[i].a].x, nodes[lines[i].a].y, nodes[lines[i].b].x, nodes[lines[i].b].y, lines[i].p);
-			//trying to skip off-screen lines would be more resource-intensive than actual drawing(?)
+			if(Math.min(nodes[lines[i].a].x, nodes[lines[i].b].x)<(-canvasX+(width/zoom)) && Math.max(nodes[lines[i].a].x, nodes[lines[i].b].x)>(-canvasX) && Math.min(nodes[lines[i].a].y, nodes[lines[i].b].y)<(-canvasY+(height/zoom)) && Math.max(nodes[lines[i].a].y, nodes[lines[i].b].y)>(-canvasY)) drawLine(nodes[lines[i].a].x, nodes[lines[i].a].y, nodes[lines[i].b].x, nodes[lines[i].b].y, lines[i].p);
 		}
 		onScreenNodes = 0;
 		totalSelected = 0;
@@ -2532,15 +2558,29 @@ $(window).load(function() {
 				else if(nodes[i].t===13) selectionRect(nodes[i].x-getWidth(i)/2-4, nodes[i].y-getHeight(i)/2-4, nodes[i].x+getWidth(i)/2+4, nodes[i].y+getHeight(i)/2+4);
 				else selectionRect(nodes[i].x-getWidth(i)/2, nodes[i].y-getHeight(i)/2, nodes[i].x+getWidth(i)/2, nodes[i].y+getHeight(i)/2);
 			}
+		}//DRAW CURRENT LINE
+		if(lineStart!==false) {
+			if(selected==="line" && selectedNodes.length>1 && selection[lineStart]) {
+				for(var i=0; i<selectedNodes.length; i++) {
+					drawLine(nodes[selectedNodes[i]].x, nodes[selectedNodes[i]].y, realX, realY, false);
+				}
+			}
+			else drawLine(nodes[lineStart].x, nodes[lineStart].y, realX, realY, false);
 		}
-		if(lineStart!==false) drawLine(nodes[lineStart].x, nodes[lineStart].y, realX, realY, false);
 		if(selecting) drawSelection(selectX, selectY, realX, realY, true);
 		if(debugShown) updateDebug();
 	}
 	
 	//UPDATE DEBUG INFO
 	function updateDebug() {
-		$("#debug").html("mouseX="+globalX+", mouseY="+globalY+"<br/>gridX="+realX+", gridY="+realY+"<br/>moveX="+canvasX+", moveY="+canvasY+"<br/>nodes: "+onScreenNodes+"/"+nodes.length+", lines: "+lines.length+", zoom: "+zoom+"<br/>TPS: "+Math.round(1000/tickSpeed)+", ticks: "+ticks+(totalSelected>0?("<br/>selection: "+totalSelected):""));
+		$("#debug").html("cursorX="+globalX+", cursorY="+globalY+
+		"<br/>mouseX="+realX+", mouseY="+realY+
+		"<br/>canvasX="+canvasX+", canvasY="+canvasY+
+		"<br/>nodes: "+onScreenNodes+"/"+nodes.length+", lines: "+lines.length+", zoom: "+zoom+
+		"<br/>TPS: "+toFixed(TPS, 2)+"/"+toFixed(1000/tickSpeed, 2)+
+		(state!=="edit"?("<br/>ticks: "+ticks):"")+
+		(totalSelected>0?("<br/>selection: "+totalSelected):"")
+		);
 	}
 	
 	//GET CLICKED OBJECT ID
@@ -2595,7 +2635,7 @@ $(window).load(function() {
 			else if(selectedNodes.length===1 && selection[clickResult]) return;
 			else {
 				selectionCancel();
-				for(var i = 0; i<nodes.length; i++) {
+				for(var i=0; i<nodes.length; i++) {
 					if(i===clickResult) selection.push(true);
 					else selection.push(false);
 				}
@@ -2605,19 +2645,32 @@ $(window).load(function() {
 		}//Click with line
 		else if(selected==="line" || (selected==="edit" && lineStart!==false)) {
 			if(clickResult===false) {//Click on empty
-				if(!lineStop()) return;
+				if(!lineStop()) selectionCancel();
 				else {
 					if(selected==="edit") addUndo();
 				}
-			}
-			else if(lineStart===false && design[nodes[clickResult].t].canStartLine) {//LINE START
+			}//LINE START
+			else if(lineStart===false && design[nodes[clickResult].t].canStartLine) {
 				lineStart = clickResult;
 				lineLast = lineStart;
 				lineStartActivate();
-			}
-			else if(lineStart!==false && design[nodes[clickResult].t].canEndLine) {//LINE END
-				if(findDuplicateLine(clickResult) || lineStart===clickResult) return;
-				lines.push({a:lineStart, b:clickResult});
+			}//LINE END
+			else if(lineStart!==false && design[nodes[clickResult].t].canEndLine) {
+				if(selectedNodes.length>1 && (selection[lineStart] || selection[clickResult])) {
+					if(selected==="line" && selection[lineStart]) var starts = selectedNodes;
+					else var starts = [lineStart];
+					if(selection[clickResult]) var ends = selectedNodes;
+					else var ends = [clickResult];
+					for(var i=0; i<starts.length; i++) {
+						for(var j=0; j<ends.length; j++) {
+							if(starts[i]!==ends[j] && !findDuplicateLine(starts[i], ends[j])) lines.push({a:starts[i], b:ends[j]});
+						}
+					}
+				}
+				else {
+					if(lineStart===clickResult || findDuplicateLine(lineStart, clickResult)) return;
+					lines.push({a:lineStart, b:clickResult});
+				}
 				lineStop();
 				addUndo();
 			}
@@ -2650,12 +2703,18 @@ $(window).load(function() {
 					for(var i=0; i<selectedNodes.length; i++) {
 						uptopNode(selectedNodes[i]);
 					}
+					selectedNodes.numSort();
+					tabID = 0;
+					addUndo();
 				}
-				else if(clickResult<nodes.length-1) uptopNode(clickResult);
-				else return;
-				selectedNodes.numSort();
-				tabID = 0;
-				addUndo();
+				else {
+					selectionCancel();
+					if(clickResult<nodes.length-1) {
+						uptopNode(clickResult);
+						tabID = 0;
+						addUndo();
+					}
+				}
 			}
 		}
 		else {//ALL OTHER TOOLS
@@ -2663,7 +2722,10 @@ $(window).load(function() {
 			
 			//EDIT Object
 			if(selected==="edit") {
-				if(clickResult===false && clickResultLine===false) {}//$("#speed").trigger("click");
+				if(clickResult===false && clickResultLine===false) {
+					selectionCancel();
+					//$("#speed").trigger("click");
+				}
 				else editObj(clickResult, clickResultLine)
 				return;
 			}//DELETE Object/Line
@@ -2677,19 +2739,22 @@ $(window).load(function() {
 					lines.splice(clickResultLine, 1);
 					addUndo();
 				}
+				else selectionCancel();
 			}//REPLACE
 			else if(selected==="replace") {
 				if(clickResult!==false && selectedNodes.length>0 && selection[clickResult]) {
 					if(!selectionReplace()) return;
+					addUndo();
 				}
 				else if(clickResult!==false) {
 					if(!replaceObj(clickResult)) return;
+					addUndo();
 				}
 				else if(clickResultLine!==false) {
 					if(!replaceLine(clickResultLine, x, y)) return;
+					addUndo();
 				}
-				else return;
-				addUndo();
+				else selectionCancel();
 			}
 		}
 		redraw();
