@@ -202,7 +202,7 @@ $(document).ready(function() {
 	var edgeScrollTimer;
 	var popupShown = "";
 	var darkMode = false;
-	var showGrid = false;
+	var showGrid = true;
 	var edgeSize = 20;
 	var gridSpacing = 42;
 	var gridLineWidth = 1;
@@ -448,9 +448,6 @@ $(document).ready(function() {
 	$("input[type=number]").on("mousewheel DOMMouseScroll", function(e){
 		if(!holdingCTRL) {
 			e.preventDefault();
-			console.log(e.originalEvent.wheelDelta);
-			/*var obj = $(this).children(".placeOpt").not(".hidden").children("input[type=number]");
-			if(obj.length<1) return;*/
 			var obj = $(this);
 			var scrollAmount = (/Firefox/i.test(navigator.userAgent))? (e.originalEvent.detail*-1) : (e.originalEvent.wheelDelta/120);
 			if(scrollAmount > 0) obj.val(parseInt(obj.val())+1);
@@ -712,10 +709,10 @@ $(document).ready(function() {
 		redraw();
 	});
 	
+	//Autohighlight place options box
 	$("#place").on("mouseenter", function() {
 		$(".placeOpt:not(.hidden) input").focus();
 	});
-	
 	/*
 	$("#place").on("mouseleave", function() {
 		$(".placeOpt:not(.hidden) input").blur();
@@ -723,36 +720,42 @@ $(document).ready(function() {
 	*/
 	
 	//TOOLBAR - Select item
-	$(".node, #delete, #edit, #replace, #select").on("click", function() {
+	$("#delete, #edit, #replace, #select").on("click", function() {
 		if(state==="edit" && !$(this).hasClass("disabled")) {
-			if(lineStart!==false) {
-				lineStop();
-				redraw();
-			}
-			if($(this).hasClass("selected") && ($(this).is("#delete") || $(this).is("#edit") || $(this).is("#replace") || $(this).is("#select"))) {
+			if(lineStop()) redraw();
+			if($(this).hasClass("selected")) {
 				$(this).removeClass("selected");
-				selected = selectedNode;
-				if($("#place"+selected).length===1) $("#place, #place"+selected).removeClass("hidden");
-				return;
+				selected=selectedNode;
+				if(selected!=="line" && $("#place"+selected).length!==0) $("#place, #place"+selected).removeClass("hidden");
 			}
-			if($(this).hasClass("node")) $(".node, #delete, #edit, #replace, #select").removeClass("selected");
 			else {
 				$("#delete, #edit, #replace, #select").removeClass("selected");
-				if($(this).is("#replace") && $("#place"+selected).length===1) $("#place").removeClass("hidden");
-			}
-			if($(this).hasClass("node") && !$(this).is("#line")) {
-				selected = parseInt($(this).attr("id"));
-				selectedNode = selected;
-				$("#replace").removeClass("disabled");
-				$(".placeOpt").addClass("hidden");
-				if($("#place"+selected).length===1) $("#place, #place"+selected).removeClass("hidden");
-				else $("#place").addClass("hidden");
-			}
-			else {
+				$(this).addClass("selected");
 				selected = $(this).attr("id");
-				if(!$(this).is("#replace")) $("#place").addClass("hidden");
+				if(selected==="replace" && $("#place"+selectedNode).length!==0) $("#place, #place"+selectedNode).removeClass("hidden");
+				else $(".placeOpt, #place").addClass("hidden");
 			}
+		}
+	});
+	$(".node").on("click", function() {
+		if(state==="edit" && !$(this).hasClass("disabled")) {
+			if(lineStop()) redraw();
+			if($(this).hasClass("selected") && selected!==selectedNode) {
+				$("#"+selected).removeClass("selected");
+				selected=selectedNode;
+				if(selected!=="line" && $("#place"+selected).length!==0) $("#place, #place"+selected).removeClass("hidden");
+				return;
+			}
+			else if($(this).hasClass("selected")) return;
+			$("#delete, #edit, #replace, #select").removeClass("selected");
+			$("#"+selectedNode).removeClass("selected");
 			$(this).addClass("selected");
+			if($(this).is("#line")) selected="line";
+			else selected=parseInt($(this).attr("id"));
+			selectedNode=selected;
+			$(".placeOpt").addClass("hidden");
+			if(selected!=="line" && $("#place"+selected).length===1) $("#place, #place"+selected).removeClass("hidden");
+			else $("#place").addClass("hidden");
 		}
 	});
 	
@@ -918,6 +921,8 @@ $(document).ready(function() {
 		//82=r, 17=ctrl, 70=f, 71=g, 192=~, 16=shift, 46=delete, 27=ESC, 13=ENTER, 32=Space, 9=TAB, 109=-, 107=+, 69=e, 81=q, 89=y, 90=z
 		//w=87 a=65 s=83 d=68  -  up=38 left=37 down=40 right=39
 		var keyID = parseInt(key.which,10);
+		
+		var lastSHIFT = holdingSHIFT;
 		if(keyID===17) holdingCTRL = true;
 		else if(keyID===16) holdingSHIFT = true;
 			
@@ -932,7 +937,7 @@ $(document).ready(function() {
 			return;
 		}
 		if(!$("#overlay").hasClass("hidden")) {
-			if(keyID===27) $("#close").trigger(mobile?"touchstart":"mousedown");
+			if(keyID===27) $("#close").trigger("click");
 			else if(keyID===13 && $(document.activeElement).is("#downloadName")) $("#downloadButton").trigger("click");
 			else if(keyID===13 && $(document.activeElement).is("#pasteImport")) $("#pasteButton").trigger("click");
 			return;
@@ -946,11 +951,21 @@ $(document).ready(function() {
 		if($("#canvas:hover").length!=0) var obj = getClickedNode(canX, canY);
 		else var obj=false;
 		//KEY SHIFT - align to grid
-		if(keyID===16 && state==="edit" && obj!==false && !dragging) {
-			nodes[obj].x=Math.round(nodes[obj].x/gridSpacing)*gridSpacing;
-			nodes[obj].y=Math.round(nodes[obj].y/gridSpacing)*gridSpacing;
-			addUndo();
-			redraw();
+		if(keyID===16 && state==="edit" && obj!==false && !dragging && !lastSHIFT) {
+			var oldX = nodes[obj].x;
+			var oldY = nodes[obj].y;
+			if(nodes[obj].t===12) {
+				nodes[obj].x=Math.round(nodes[obj].x/(gridSpacing/2))*gridSpacing/2;
+				nodes[obj].y=Math.round(nodes[obj].y/(gridSpacing/2))*gridSpacing/2;
+			}
+			else {
+				nodes[obj].x=Math.round(nodes[obj].x/gridSpacing)*gridSpacing;
+				nodes[obj].y=Math.round(nodes[obj].y/gridSpacing)*gridSpacing;
+			}
+			if(oldX!==nodes[obj].x || oldY!==nodes[obj].y) {
+				addUndo();
+				redraw();
+			}
 		}//KEY F - quick new line
 		else if(keyID===70 && state==="edit" && !holdingClick && lineLast!==false && selected==="line" && lineStart===false) {
 			lineStart = lineLast;
@@ -962,7 +977,7 @@ $(document).ready(function() {
 		}//KEY ~ - toggle debug info
 		else if(keyID===192) {
 			$("#debugSlider").trigger("click");
-		}//KEY DELETE - delete object
+		}//KEY Q/DELETE - delete object
 		else if((keyID===46 || keyID===81) && state==="edit" && !holdingClick && lineStart===false) {
 			if(obj!==false) {
 				deleteObj(obj);
@@ -975,6 +990,13 @@ $(document).ready(function() {
 				}
 			}
 			redraw();
+		}//KEY R - replace object/line
+		else if(keyID===82 && !holdingClick && state==="edit") {
+			if(obj!==false) replaceObj(obj);
+			else {
+				var clickedLine = getClickedLine(canX, canY);
+				if(clickedLine!==false) replaceLine(clickedLine, canX, canY);
+			}
 		}//KEY WASD / up,left,down,right - PAN
 		else if([87, 65, 83, 68, 38, 37, 40, 39].includes(keyID)) {
 			var panAmount = gridSpacing/zoom;
@@ -982,20 +1004,25 @@ $(document).ready(function() {
 				case 87: case 38://w - up
 					canvasY+=panAmount;
 					ctx.translate(0, panAmount);
+					realY-=panAmount;
 					break;
 				case 65: case 37://a - left
 					canvasX+=panAmount;
 					ctx.translate(panAmount, 0);
+					realX-=panAmount;
 					break;
 				case 83: case 40://s - down
 					canvasY-=panAmount;
 					ctx.translate(0, -panAmount);
+					realY+=panAmount;
 					break;
 				case 68: case 39://d - right
 					canvasX-=panAmount;
 					ctx.translate(-panAmount, 0);
+					realX+=panAmount;
 					break;
 			}
+			if(dragging) dragMovePos();
 			redraw();
 		}//KEY - UNZOOM
 		else if(keyID===109) {
@@ -1035,10 +1062,7 @@ $(document).ready(function() {
 			else stopSimulation();
 		}//KEY Esc - Cancel
 		else if(keyID===27) {
-			if(lineStart!==false) {
-				lineStop();
-				redraw();
-			}
+			if(lineStop()) redraw();
 			else if(state!=="edit" && !holdingClick) stopSimulation();
 		}//KEY TAB - Cycle through nodes
 		else if(keyID===9 && !holdingClick) {
@@ -1092,7 +1116,7 @@ $(document).ready(function() {
 				$("#canvas").off(mobile?"touchmove.start":"mousemove.start");
 				mainAltEnd();
 				var clickResult = getClickedNode(realX, realY);
-				if(selected==="line" && clickResult!==false && lineStart===false) {
+				if((selected==="line" || selected==="replace") && clickResult!==false && lineStart===false) {
 					dragObj(clickResult);
 				}
 				else panActivate();
@@ -1139,8 +1163,14 @@ $(document).ready(function() {
 			e.preventDefault();
 			edgeScrollStart();
 			if(holdingSHIFT) {
-				nodes[dragId].x=Math.round(realX/gridSpacing)*gridSpacing;
-				nodes[dragId].y=Math.round(realY/gridSpacing)*gridSpacing;
+				if(nodes[dragId].t===12) {
+					nodes[dragId].x=Math.round(realX/(gridSpacing/2))*gridSpacing/2;
+					nodes[dragId].y=Math.round(realY/(gridSpacing/2))*gridSpacing/2;
+				}
+				else {
+					nodes[dragId].x=Math.round(realX/gridSpacing)*gridSpacing;
+					nodes[dragId].y=Math.round(realY/gridSpacing)*gridSpacing;
+				}
 				dragLastX = realX;
 				dragLastY = realY;
 			}
@@ -1155,47 +1185,6 @@ $(document).ready(function() {
 		nodes[dragId].y+=moveY;
 		dragLastX = realX;
 		dragLastY = realY;
-	}
-	
-	//MOUSE disable hold - mouseup
-	$(document).on(mobile?"touchend":"mouseup", function(e) {
-		if(e.type==="touchend" || e.which===1) {
-			if(dragging) {
-				$("#canvas").off(mobile?"touchmove.drag":"mousemove.drag");
-				dragging = false;
-				tabID=0;
-				edgeScrollStop();
-				addUndo();
-			}
-			$("#canvas").off(mobile?"touchmove.pan":"mousemove.pan");
-			$("#place").find("*").add("#place").css("pointer-events", "auto");
-			holdingClick = false;
-		}
-	});
-	
-	//MOUSE start line - mousemove
-	function lineStartActivate() {
-		$("#canvas").on(mobile?"touchmove.line":"mousemove.line", function(event) {
-			redraw();
-		});
-	}
-	
-	//MOUSE pan / translate canvas - mousemove
-	function panActivate() {
-		$("#place").find("*").add("#place").css("pointer-events", "none");
-		panLastX=globalX/zoom;
-		panLastY=globalY/zoom;
-		$("#canvas").on(mobile?"touchmove.pan":"mousemove.pan", function(event) {
-			event.preventDefault();
-			var canX=globalX/zoom;
-			var canY=globalY/zoom;
-			canvasX=canvasX+(canX-panLastX);
-			canvasY=canvasY+(canY-panLastY);
-			ctx.translate(canX-panLastX, canY-panLastY);
-			panLastX = canX;
-			panLastY = canY;
-			redraw();
-		});
 	}
 	
 	//AUTOSCROLL Canvas when mouse on edge
@@ -1238,6 +1227,47 @@ $(document).ready(function() {
 	function edgeScrollStop() {//STOP
 		clearTimeout(edgeScrollTimer);
 		edgeScrolling=false;
+	}
+	
+	//MOUSE disable hold - mouseup
+	$(document).on(mobile?"touchend":"mouseup", function(e) {
+		if(e.type==="touchend" || e.which===1) {
+			if(dragging) {
+				$("#canvas").off(mobile?"touchmove.drag":"mousemove.drag");
+				dragging = false;
+				tabID=0;
+				edgeScrollStop();
+				addUndo();
+			}
+			$("#canvas").off(mobile?"touchmove.pan":"mousemove.pan");
+			$("#place").find("*").add("#place").css("pointer-events", "auto");
+			holdingClick = false;
+		}
+	});
+	
+	//MOUSE start line - mousemove
+	function lineStartActivate() {
+		$("#canvas").on(mobile?"touchmove.line":"mousemove.line", function(event) {
+			redraw();
+		});
+	}
+	
+	//MOUSE pan / translate canvas - mousemove
+	function panActivate() {
+		$("#place").find("*").add("#place").css("pointer-events", "none");
+		panLastX=globalX/zoom;
+		panLastY=globalY/zoom;
+		$("#canvas").on(mobile?"touchmove.pan":"mousemove.pan", function(event) {
+			event.preventDefault();
+			var canX=globalX/zoom;
+			var canY=globalY/zoom;
+			canvasX=canvasX+(canX-panLastX);
+			canvasY=canvasY+(canY-panLastY);
+			ctx.translate(canX-panLastX, canY-panLastY);
+			panLastX = canX;
+			panLastY = canY;
+			redraw();
+		});
 	}
 	
 	//CLOSE POPUP
@@ -1337,6 +1367,7 @@ $(document).ready(function() {
 		$("#pause").attr("src", "icons/pause.png");
 		$("#step").addClass("disabled");
 		$(".node, #EditControls .button").removeClass("disabled");
+		if(selected!=="line" && $("#place"+selected).length!==0) $("#place, #place"+selected).removeClass("hidden");
 		resetPower();
 		redraw();
 	}
@@ -1346,6 +1377,7 @@ $(document).ready(function() {
 		$("#StartControls").addClass("hidden");
 		$("#StopControls").removeClass("hidden");
 		$(".node, #EditControls .button").addClass("disabled");
+		$("#place").addClass("hidden");
 		lineStop();
 		state="running";
 		TimeoutID = setTimeout(Tick, tickSpeed);
@@ -1569,6 +1601,62 @@ $(document).ready(function() {
 		savePointer=undoStack.length-1;
 	}
 	
+	//Replace object
+	function replaceObj(id) {
+		var obj=nodes[id];
+		if(selectedNode==="line") {
+			var i=0;
+			var starts = [];
+			var ends = [];
+			while(i<lines.length) {
+				if(lines[i].b===id) {
+					starts.push(lines[i].a);
+					lines.splice(i, 1);
+				}
+				else if(lines[i].a===id) {
+					ends.push(lines[i].b);
+					lines.splice(i, 1);
+				}
+			}
+			for(var i=0; i<starts.length; i++) {
+				for(var j=0; j<ends.length; j++) {
+					lines.push({a:starts[i], b:ends[j]});
+				}
+			}
+			deleteObj(id);
+		}
+		else {
+			var newObj = createNewObj(selectedNode, nodes[id].x, nodes[id].y);
+			if(newObj===false) return;
+			if(!design[newObj.t].canStartLine || !design[newObj.t].canEndLine) {
+				var i=0;
+				while(i<lines.length) {
+					if((!design[newObj.t].canStartLine && lines[i].a===id) || (!design[newObj.t].canEndLine && lines[i].b===id)) lines.splice(i, 1);
+					else i++;
+				}
+			}
+			nodes.splice(id, 1, newObj);
+			tabID=0;
+			addUndo();
+		}
+		redraw();
+	}
+	
+	//Replace line
+	function replaceLine(line, x, y) {
+		if(selectedNode==="line") return;
+		var newObj = createNewObj(selectedNode, x, y);
+		var startObj = lines[line].a;
+		var endObj = lines[line].b;
+		lines.splice(line, 1);
+		nodes.push(newObj);
+		if(design[newObj.t].canEndLine) lines.push({a:startObj, b:nodes.length-1});
+		if(design[newObj.t].canStartLine) lines.push({a:nodes.length-1, b:endObj});
+		tabID=0;
+		addUndo();
+		redraw();
+	}
+	
 	//Find duplicate line - prevent creating multiple identical lines
 	function findDuplicateLine(id) {
 		for(var i=0; i<lines.length; i++) {
@@ -1594,6 +1682,85 @@ $(document).ready(function() {
 			if(lineLast>pos) lineLast--;
 			else if(lineLast===pos) lineLast=nodes.length-1;
 		}
+	}
+	
+	//CREATE New Object
+	function createNewObj(type, x, y) {
+		switch(type) {
+			case 1://SWITCH
+				return {t:1, n:formatText($("#place"+type+" input").val(), "Switch"), p:false, x:x, y:y};
+				break;
+			case 2://BUTTON
+				return {t:2, n:formatText($("#place"+type+" input").val(), "Button"), p:false, x:x, y:y};
+				break;
+			case 3://PULSER
+				var delay=formatNum($("#place"+type+" input").val());
+				if(delay===false || delay<0 || delay>3600000) {
+					popupMsg("Invalid number!");
+					return false;
+				}
+				else {
+					delay = Math.round(delay);
+					return {t:3, p:false, x:x, y:y, d:delay, c:delay};
+				}
+				break;
+			case 4://OR
+				return {t:4, p:false, x:x, y:y};
+				break;
+			case 5://AND
+				return {t:5, p:false, x:x, y:y};
+				break;
+			case 6://NOT
+				var pwr = $("#place"+type+" .slider").hasClass("activated");
+				return {t:6, p:pwr, q:pwr, x:x, y:y};
+				break;
+			case 7://DELAY
+				var delay=formatNum($("#place"+type+" input").val());
+				if(delay===false || delay<0 || delay>3600000) {
+					popupMsg("Invalid number!");
+					return false;
+				}
+				else {
+					delay = Math.round(delay);
+					return {t:7, p:false, d:delay, c:delay, x:x, y:y};
+				}
+				break;
+			case 8://TOGGLE
+				var pwr = $("#place"+type+" .slider").hasClass("activated");
+				return {t:8, p:pwr, q:pwr, f:false, x:x, y:y};
+				break;
+			case 9://MONOSTABLE
+				return {t:9, p:false, f:false, x:x, y:y};
+				break;
+			case 10://RANDOM
+				return {t:10, p:false, x:x, y:y, f:false};
+				break;
+			case 11://NOTE
+				alert("Not yet implemented!");
+				return false;
+				//var note = prompt();
+				//nodes.push({t:11, p:false, n:note, x:x, y:y});
+				break;
+			case 12://OUTPUT LAMP
+				return {t:12, p:false, n:formatText($("#place"+type+" input").val()), x:Math.round(x/(gridSpacing/2))*(gridSpacing/2), y:Math.round(y/(gridSpacing/2))*(gridSpacing/2)};
+				break;
+			case 13://TEXT
+				var txt = formatText($("#place"+type+" input").val())
+				if(txt==="") {
+					return false;
+				}
+				else if(txt.length>100) {
+					popupMsg("The text is too long!<br />(Maximum length: 100)");
+					return false;
+				}
+				else {
+					ctx.font = design[type].textSize+"px Arial";
+					var measure = parseFloat(ctx.measureText(txt).width.toFixed(2));
+					return {t:13, n:txt, x:x, y:y, w:measure};
+				}
+				break;
+		}
+		return false;
 	}
 	
 	//DELETE object
@@ -1688,6 +1855,7 @@ $(document).ready(function() {
 		}
 		dragId=nodes.length-1;
 		dragging = true;
+		tabID = 0;
 		redraw();
 		nodeMoveActivate();
 	}
@@ -1697,7 +1865,9 @@ $(document).ready(function() {
 		if(lineStart!==false) {
 			lineStart=false;
 			$("#canvas").off(mobile?"touchmove.line":"mousemove.line");
+			return true;
 		}
+		return false;
 	}
 	
 	//Draw grid
@@ -1844,82 +2014,12 @@ $(document).ready(function() {
 			else if(!["select", "edit", "delete", "replace"].includes(selected)) {
 				if(clickResult!==false) {//ACTIVATE DRAG OBJECT
 					dragObj(clickResult);
+					return;
 				}
 				else {//CREATE NEW OBJECT
-					switch(selected) {
-						case 1://SWITCH
-							nodes.push({t:1, n:formatText($("#place"+selected+" input").val(), "Switch"), p:false, x:x, y:y});
-							break;
-						case 2://BUTTON
-							nodes.push({t:2, n:formatText($("#place"+selected+" input").val(), "Button"), p:false, x:x, y:y});
-							break;
-						case 3://PULSER
-							var delay=formatNum($("#place"+selected+" input").val());
-							if(delay===false || delay<0 || delay>3600000) {
-								popupMsg("Invalid number!");
-								return;
-							}
-							else {
-								delay = Math.round(delay);
-								nodes.push({t:3, p:false, x:x, y:y, d:delay, c:delay});
-							}
-							break;
-						case 4://OR
-							nodes.push({t:4, p:false, x:x, y:y});
-							break;
-						case 5://AND
-							nodes.push({t:5, p:false, x:x, y:y});
-							break;
-						case 6://NOT
-							var pwr = $("#place"+selected+" .slider").hasClass("activated");
-							nodes.push({t:6, p:pwr, q:pwr, x:x, y:y});
-							break;
-						case 7://DELAY
-							var delay=formatNum($("#place"+selected+" input").val());
-							if(delay===false || delay<0 || delay>3600000) {
-								popupMsg("Invalid number!");
-								return;
-							}
-							else {
-								delay = Math.round(delay);
-								nodes.push({t:7, p:false, d:delay, c:delay, x:x, y:y});
-							}
-							break;
-						case 8://TOGGLE
-							var pwr = $("#place"+selected+" .slider").hasClass("activated");
-							nodes.push({t:8, p:pwr, q:pwr, f:false, x:x, y:y});
-							break;
-						case 9://MONOSTABLE
-							nodes.push({t:9, p:false, f:false, x:x, y:y});
-							break;
-						case 10://RANDOM
-							nodes.push({t:10, p:false, x:x, y:y, f:false});
-							break;
-						case 11://NOTE
-							alert("Not yet implemented!");
-							return;
-							//var note = prompt();
-							//nodes.push({t:11, p:false, n:note, x:x, y:y});
-							break;
-						case 12://OUTPUT LAMP
-							nodes.push({t:12, p:false, n:formatText($("#place"+selected+" input").val()), x:Math.round(x/gridSpacing)*gridSpacing, y:Math.round(y/gridSpacing)*gridSpacing});
-							break;
-						case 13://TEXT
-							var txt = formatText($("#place"+selected+" input").val())
-							if(txt==="") {
-								return;
-							}
-							else if(txt.length>100) {
-								popupMsg("The text is too long!<br />(Maximum length: 100)");
-								return;
-							}
-							else {
-								ctx.font = design[selected].textSize+"px Arial";
-								var measure = parseFloat(ctx.measureText(txt).width.toFixed(2));
-								nodes.push({t:13, n:txt, x:x, y:y, w:measure});
-							}
-							break;
-					}
+					var newObj = createNewObj(selectedNode, x, y);
+					if(newObj===false) return;
+					else nodes.push(newObj);
 					tabID=0;
 					addUndo();
 				}
@@ -1936,11 +2036,9 @@ $(document).ready(function() {
 			else if(selected==="edit" && (clickResult!==false || clickResultLine!==false)) {
 				editObj(clickResult, clickResultLine);
 			}//REPLACE OBJECT
-			else if((selected==="replace" || selected==="select") && clickResult!==false) {
-				alert("Not yet implemented!");
-				//var oldObj=nodes[clickResult];
-				//tabID=0;
-				//addUndo();
+			else if((selected==="replace" || selected==="select") && (clickResult!==false || clickResultLine!==false)) {
+				if(clickResult!==false) replaceObj(clickResult);
+				else replaceLine(clickResultLine, x, y);
 			}
 		}//CLICK BUTTON / SWITCH while running
 		else if(state==="running" && clickResult!==false) {
