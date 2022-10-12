@@ -459,10 +459,14 @@ input[type=text], input[type=number] {
 	width:calc(100% - 4px);
 }
 
-.cursor_move {
-	cursor:move;
-}
-
 .cursor_click {
 	cursor:pointer;
+}
+
+.cursor_cross {
+	cursor:crosshair;
+}
+
+.cursor_move {
+	cursor:move;
 }

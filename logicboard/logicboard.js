@@ -127,28 +127,26 @@ $(document).ready(function() {
 	}
 	
 	//POLYFILF IF BROWSER DOES NOT SUPPORT .includes
-	if(!Array.prototype.includes) {
-		Array.prototype.includes = function(searchElement) {
-			if(this == null) throw new TypeError("Array.prototype.includes called on null or undefined");
-			var O = Object(this);
-			var len = parseInt(O.length, 10) || 0;
-			if(len===0) return false;
-			var n = parseInt(arguments[1], 10) || 0;
-			var k;
-			if(n>=0) k = n;
-			else {
-				k = len + n;
-				if(k<0) k = 0;
-			}
-			var currentElement;
-			while(k < len) {
-				currentElement = O[k];
-				if(searchElement===currentElement || (searchElement !== searchElement && currentElement !== currentElement)) return true;
-				k++;
-			}
-			return false;
-		};
-	}
+	if(!Array.prototype.includes) Array.prototype.includes = function(searchElement) {
+		if(this == null) throw new TypeError("Array.prototype.includes called on null or undefined");
+		var O = Object(this);
+		var len = parseInt(O.length, 10) || 0;
+		if(len===0) return false;
+		var n = parseInt(arguments[1], 10) || 0;
+		var k;
+		if(n>=0) k = n;
+		else {
+			k = len + n;
+			if(k<0) k = 0;
+		}
+		var currentElement;
+		while(k < len) {
+			currentElement = O[k];
+			if(searchElement===currentElement || (searchElement !== searchElement && currentElement !== currentElement)) return true;
+			k++;
+		}
+		return false;
+	};
 	
 	//trigger file download
 	function downloadProject(filename, datastring) {
@@ -281,7 +279,10 @@ $(document).ready(function() {
 	var lines = [];
 	var undoStack = [];
 	var selection = [];
-	var selectedNodes = 0;
+	var selectedNodes = [];
+	var clipboardNodes = [];
+	var clipboardLines = [];
+	var totalSelected = 0;
 	var undoPointer = -1;
 	var undoTrackView = false;
 	var tickSpeed = 10;
@@ -298,26 +299,26 @@ $(document).ready(function() {
 	var popupShown = "";
 	var darkMode = false;
 	var showGrid = true;
+	var debugShown = false;
 	var alignActivated = false;
-	var edgeSize = 10;
+	var edgeSize = 14;
 	var gridSpacing = 42;
-	var gridLineWidth = 1;
-	var gridLineWidthBig = 2;
-	var gridLineColor = "rgba(220, 220, 220, 1)";//#DCDCDC
 	
 	var fontSize = 16;
 	var textSize = 28;
+	var debugNodeTextSize = 8;
 	var outlineWidth = 4;
 	var lineWidth = 4;
 	var lineClickRadius = 0.08;
 	var selectionOutlineWidth = 4;
+	var cursorMoveTol = mobile?5:3;
 	
 	var whiteColor = "rgba(255, 255, 255, 1)";//#FFF
 	var blackColor = "rgba(0, 0, 0, 1)";//#000
 	var redColor = "rgba(255, 0, 0, 1)";//#F00
 	var blueColor = "rgba(0, 0, 255, 1)";//#00F
 	var greenColor = "rgba(0, 255, 0, 1)";//#0F0
-	var noOutline = "rgba(0, 0, 0, 0)";
+	var noOutline = "rgba(0, 0, 0, 0)";//transparent
 	var outlineColor = blackColor;
 	
 	var nodeUnpoweredColor = "rgba(200, 200, 200, 1)";//#C8C8C8
@@ -327,6 +328,9 @@ $(document).ready(function() {
 	var linePoweredColor = redColor;
 	var linePoweredGradient = "rgba(255, 150, 150, 1)";//#FF9696
 	var textNodeColor = "rgba(128, 128, 128, 1)";//#808080
+	var gridLineWidth = 1;
+	var gridLineWidthBig = 2;
+	var gridLineColor = "rgba(220, 220, 220, 1)";//#DCDCDC
 	var selectionColor = "rgba(100, 200, 240, 0.5)";//#64C8F0
 	var selectionOutline = "rgba(50, 150, 255, 0.8)";//#3296FF
 	
@@ -580,6 +584,7 @@ $(document).ready(function() {
 			tickSpeed=10;
 			$("#speedSetting").html("Ticks per second: 100");
 			tabID=0;
+			selectionCancel();
 			lineStart=false;
 			lineLast=false;
 			addUndo();
@@ -633,7 +638,6 @@ $(document).ready(function() {
 		else if(filename.length>50) popupMsg("The file name is too long!");
 		else {
 			try {
-				var savefile = 
 				downloadProject(filename+".lgb", getSave());
 				$("#overlay, #menu_save").addClass("hidden");
 				save();
@@ -730,6 +734,7 @@ $(document).ready(function() {
 			canvasY=loadArrInfo[2];
 			zoom=loadArrInfo[3];
 			tickSpeed=loadArrInfo[4];
+			selectionCancel();
 			addUndo();
 			save();
 		}
@@ -771,11 +776,14 @@ $(document).ready(function() {
 	//Enable Debug Info
 	$("#debugSlider").on("click", function() {
 		if($("#debug").hasClass("hidden")) {
-			updateDebug();
+			debugShown = true;
+			redraw();
 			$("#debug").removeClass("hidden");
 		}
 		else {
 			$("#debug").addClass("hidden");
+			debugShown = false;
+			redraw();
 		}
 	});
 	
@@ -844,13 +852,16 @@ $(document).ready(function() {
 			if(lineStop() || selectStop()) redraw();
 			if($(this).hasClass("selected")) {
 				$(this).removeClass("selected");
+				if($(this).is("#select")) $("#canvas").removeClass("cursor_cross");
 				selected=selectedNode;
 				if(selected!=="line" && $("#place"+selected).length!==0) $("#place, #place"+selected).removeClass("hidden");
 			}
 			else {
 				$("#delete, #edit, #replace, #select").removeClass("selected");
+				if(selected==="select") $("#canvas").removeClass("cursor_cross");
 				$(this).addClass("selected");
 				selected = $(this).attr("id");
+				if(selected==="select") $("#canvas").addClass("cursor_cross");
 				if(selected==="replace" && $("#place"+selectedNode).length!==0) $("#place, #place"+selectedNode).removeClass("hidden");
 				else $(".placeOpt, #place").addClass("hidden");
 			}
@@ -861,12 +872,14 @@ $(document).ready(function() {
 			if(lineStop() || selectStop()) redraw();
 			if($(this).hasClass("selected") && selected!==selectedNode) {
 				$("#"+selected).removeClass("selected");
+				if(selected==="select") $("#canvas").removeClass("cursor_cross");
 				selected=selectedNode;
 				if(selected!=="line" && $("#place"+selected).length!==0) $("#place, #place"+selected).removeClass("hidden");
 				return;
 			}
 			else if($(this).hasClass("selected")) return;
 			$("#delete, #edit, #replace, #select").removeClass("selected");
+			if(selected==="select") $("#canvas").removeClass("cursor_cross");
 			$("#"+selectedNode).removeClass("selected");
 			$(this).addClass("selected");
 			if($(this).is("#line")) selected="line";
@@ -885,21 +898,9 @@ $(document).ready(function() {
 	
 	//TOOLBAR - STOP / Pause / Step
 	$("#StopControls .button").on("click", function() {
-		if($(this).attr("id")==="stop") {
-			stopSimulation();
-		}
-		else if($(this).attr("id")==="pause" && state==="paused") {
-			state="running";
-			$("#pause").attr("src", "icons/pause.svg");
-			$("#step").addClass("disabled");
-			TimeoutID = setTimeout(Tick, tickSpeed);
-		}
-		else if($(this).attr("id")==="pause") {
-			state="paused";
-			$("#pause").attr("src", "icons/continue.svg");
-			$("#step").removeClass("disabled");
-			clearTimeout(TimeoutID);
-		}
+		if($(this).attr("id")==="stop") stopSimulation();
+		else if($(this).attr("id")==="pause" && state==="paused") unpauseSimulation();
+		else if($(this).attr("id")==="pause") pauseSimulation();
 		else if($(this).attr("id")==="step") {
 			if(state==="paused") {
 				Tick();
@@ -907,6 +908,18 @@ $(document).ready(function() {
 			}
 		}
 	});
+	function pauseSimulation() {
+		state="paused";
+		$("#pause").attr("src", "icons/continue.svg");
+		$("#step").removeClass("disabled");
+		clearTimeout(TimeoutID);
+	}
+	function unpauseSimulation() {
+		state="running";
+		$("#pause").attr("src", "icons/pause.svg");
+		$("#step").addClass("disabled");
+		TimeoutID = setTimeout(Tick, tickSpeed);
+	}
 	
 	//BUTTON zoom+
 	$("#zoom").on("click", function() {
@@ -1037,14 +1050,15 @@ $(document).ready(function() {
 	
 	//KEYDOWN on canvas
 	$(document).on("keydown", function(key) {
-		//82=r, 17=ctrl, 70=f, 71=g, 192=~, 16=shift, 46=delete, 27=ESC, 13=ENTER, 32=Space, 9=TAB, 109=-, 107=+, 69=e, 81=q, 89=y, 90=z
+		//82=r, 17=ctrl, 70=f, 71=g, 192=~, 16=shift, 46=delete, 27=ESC, 13=ENTER, 32=Space, 9=TAB, 109=-, 107=+, 69=e, 81=q, 89=y, 90=z, 73=i, 112=F1, 80=p, 67=c, 86=v, 88=x
 		//w=87 a=65 s=83 d=68  -  up=38 left=37 down=40 right=39
 		var keyID = parseInt(key.which,10);
 		
 		var lastSHIFT = holdingSHIFT;
 		if(keyID===17) holdingCTRL = true;
 		else if(keyID===16) holdingSHIFT = true;
-			
+		
+		//Keyboard controls for popup
 		if(popupShown!=="") {
 			if(popupShown==="msg") {
 				if(keyID===13 || keyID===27) $("#popupClose").trigger("click");
@@ -1054,21 +1068,24 @@ $(document).ready(function() {
 				else if(keyID===27) $("#popupCancel").trigger("click");
 			}
 			return;
-		}
+		}//Keyboard controls for overlay
 		if(!$("#overlay").hasClass("hidden")) {
 			if(keyID===27) $("#close").trigger("click");
 			else if(keyID===13 && $(document.activeElement).is("#downloadName")) $("#downloadButton").trigger("click");
 			else if(keyID===13 && $(document.activeElement).is("#pasteImport")) $("#pasteButton").trigger("click");
 			return;
-		}
+		}//Disable focus on #place (enter/esc)
 		if($(document.activeElement).parent().parent().is("#place")) {
 			if(keyID===27 || keyID===13) $(".placeOpt:not(.hidden) input").blur();
 			return;
 		}
+		
+		//Get object on cursor
 		var canX=realX;
 		var canY=realY;
 		if($("#canvas:hover").length!=0) var obj = getClickedNode(canX, canY);
 		else var obj=false;
+		
 		//KEY SHIFT - align to grid
 		if(keyID===16 && state==="edit" && obj!==false && !lastSHIFT && !selecting) {
 			var oldX = nodes[obj].x;
@@ -1081,9 +1098,31 @@ $(document).ready(function() {
 				redraw();
 			}
 		}//KEY F - quick new line
-		else if(keyID===70 && state==="edit" && !holdingClick && lineLast!==false && selected==="line" && lineStart===false) {
+		else if(keyID===70 && state==="edit" && !holdingClick && lineLast!==false && selected==="line") {
 			lineStart = lineLast;
 			lineStartActivate();
+			redraw();
+		}//KEY F1 - show help
+		else if(keyID===112) {
+			key.preventDefault();
+			$("#info").trigger("click");
+		}//KEY CTRL+A - select all
+		else if(keyID===65 && state==="edit" && holdingCTRL && !holdingClick) {
+			if(selectedNodes.length===nodes.length) return;
+			selectionCancel();
+			for(var i=0; i<nodes.length; i++) {
+				selection.push(true);
+				selectedNodes.push(i);
+			}
+			redraw();
+		}//KEY CTRL+I - invert selection
+		else if(keyID===73 && !holdingClick && state==="edit" && selectedNodes.length>0) {
+			selectedNodes = [];
+			for(var i=0; i<selection.length; i++) {
+				if(!selection[i]) selectedNodes.push(i);
+				selection[i]=!selection[i];
+			}
+			if(selectedNodes.length===0) selectionCalcel();
 			redraw();
 		}//KEY G - toggle grid visible
 		else if(keyID===71) {
@@ -1092,18 +1131,20 @@ $(document).ready(function() {
 		else if(keyID===192) {
 			$("#debugSlider").trigger("click");
 		}//KEY Q & DELETE - delete object
-		else if((keyID===46 || keyID===81) && state==="edit" && !holdingClick && lineStart===false) {
-			//if(selectedNodes>0) selectionDelete();
-			if(obj!==false) {
-				if(selectedNodes>0 && selection[obj]) selectionDelete();
-				else deleteObj(obj);
-			}
+		else if((keyID===81 || keyID===46) && state==="edit" && !holdingClick && lineStart===false) {
+			if(keyID===46 && selectedNodes.length>0) selectionDelete();
 			else {
-				var clickedLine = getClickedLine(canX, canY);
-				if(clickedLine!==false) lines.splice(clickedLine, 1);
+				if(obj!==false) {
+					if(selectedNodes.length>0 && selection[obj]) selectionDelete();
+					else deleteObj(obj);
+				}
 				else {
-					if(selectedNodes>0) selectionDelete();
-					else return;
+					var clickedLine = getClickedLine(canX, canY);
+					if(clickedLine!==false) lines.splice(clickedLine, 1);
+					else {
+						if(selectedNodes.length>0) selectionDelete();
+						else return;
+					}
 				}
 			}
 			addUndo();
@@ -1163,20 +1204,22 @@ $(document).ready(function() {
 				var clickedLine = getClickedLine(canX, canY);
 				if(clickedLine!==false) editObj(false, clickedLine);
 			}
-		}//KEY CTRL+Z - Undo
-		else if(keyID===90 && holdingCTRL && !holdingClick && state==="edit") {
-			lineStop();
-			selectStop();
-			undo();
-		}//KEY CTRL+Y - Redo
-		else if(keyID===89 && holdingCTRL && !holdingClick && state==="edit") {
-			lineStop();
-			selectStop();
-			redo();
 		}//KEY SPACE - Start/Stop Simulation
 		else if(keyID===32 && !holdingClick) {
 			if(state==="edit") startSimulation();
 			else stopSimulation();
+		}//KEY P - Pause Simulation
+		else if(keyID===80 && state!=="edit") {
+			if(state==="paused") unpauseSimulation();
+			else pauseSimulation();
+		}//KEY CTRL+Z - Undo
+		else if(keyID===90 && holdingCTRL && !holdingClick && state==="edit" && !selecting) {
+			lineStop();
+			undo();
+		}//KEY CTRL+Y - Redo
+		else if(keyID===89 && holdingCTRL && !holdingClick && state==="edit" && !selecting) {
+			lineStop();
+			redo();
 		}//KEY Esc - Cancel
 		else if(keyID===27) {
 			if(lineStop() || selectStop()) redraw();
@@ -1254,19 +1297,20 @@ $(document).ready(function() {
 	}//detect moving mouse - cancel main click
 	function enableMainMoveStart() {
 		$("#canvas").on(mobile?"touchmove.start":"mousemove.start", function() {
-			if(Math.abs(startClickX-globalX)>(mobile?4:2) || Math.abs(startClickY-globalY)>(mobile?4:2)) {
+			if(Math.abs(startClickX-globalX)>cursorMoveTol || Math.abs(startClickY-globalY)>cursorMoveTol) {
 				$("#canvas").off(mobile?"touchend.main":"mouseup.main");
 				$("#canvas").off(mobile?"touchmove.start":"mousemove.start");
 				if(selected==="select") {
 					selecting = true;
 					selectX = startClickXr;
 					selectY = startClickYr;
+					if(!holdingCTRL) selectionCancel();
 					selectionStartActivate();
 				}
 				else {
 					var objID = getClickedNode(startClickXr, startClickYr);
 					if(objID===false || lineStart!==false) panActivate();
-					else if(selectedNodes>1 && selection[objID]) selectionDrag();
+					else if(selectedNodes.length>1 && selection[objID]) selectionDrag();
 					else dragObj(objID);
 				}
 				enableAltClickEnd();
@@ -1324,6 +1368,7 @@ $(document).ready(function() {
 			if(selectStop()) {
 				edgeScrollStop();
 				selectArea();
+				//if(!holdingCTRL) $("#select").trigger("click");
 			}
 		}
 	});
@@ -1458,6 +1503,12 @@ $(document).ready(function() {
 		return false;
 	}
 	
+	//Cancel selection
+	function selectionCancel() {
+		selection = [];
+		selectedNodes = [];
+	}
+	
 	//MOUSE pan / translate canvas - mousemove
 	function panActivate() {
 		$("#place").addClass("noFocus");
@@ -1577,6 +1628,7 @@ $(document).ready(function() {
 		$("#step").addClass("disabled");
 		$(".node, #EditControls .button").removeClass("disabled");
 		if(selected!=="line" && $("#place"+selected).length!==0) $("#place, #place"+selected).removeClass("hidden");
+		if(selected==="select") $("#canvas").addClass("cursor_cross");
 		resetPower();
 		redraw();
 	}
@@ -1587,6 +1639,7 @@ $(document).ready(function() {
 		$("#StopControls").removeClass("hidden");
 		$(".node, #EditControls .button").addClass("disabled");
 		$("#place").addClass("hidden");
+		$("#canvas").removeClass("cursor_cross");
 		lineStop();
 		selectStop();
 		state="running";
@@ -1771,6 +1824,7 @@ $(document).ready(function() {
 	//UNDO
 	function undo() {
 		if(state!=="edit" || undoStack.length<2 || undoPointer===0) return;
+		selectionCancel();
 		undoPointer--;
 		if(undoPointer===0) $("#undo").addClass("disabled");
 		$("#redo").removeClass("disabled");
@@ -1780,6 +1834,7 @@ $(document).ready(function() {
 	//REDO
 	function redo() {
 		if(state!=="edit" || undoStack.length<2 || undoPointer===undoStack.length-1) return;
+		selectionCancel();
 		undoPointer++;
 		if(undoPointer===undoStack.length-1) $("#redo").addClass("disabled");
 		$("#undo").removeClass("disabled");
@@ -1806,6 +1861,42 @@ $(document).ready(function() {
 		redraw();
 	}
 	
+	//COPY to CLIPBOARD
+	function clipboardCopy() {
+		if(selectedNodes.length===0) return false;
+		clipboardNodes = [];
+		clipboardLines = [];
+		for(var i=0; i<selectedNodes.length; i++) {
+			clipboardNodes.push(nodes[selectedNodes[i]]);
+		}
+		for(var i=0; i<lines.length; i++) {
+			if(selection[lines[i].a] && selection[lines[i].b]) clipboardLines.push(lines[i]);
+		}
+	}
+	
+	//PASTE from CLIPBOARD
+	function clipboardPaste() {
+		if(clipboardNodes.length===0) return false;
+		selectionCancel();
+		var minX = clipboardNodes[0].x;
+		var minY = clipboardNodes[0].y;
+		var maxX = clipboardNodes[0].x;
+		var maxY = clipboardNodes[0].y;
+		for(var i=1; i<clipboardNodes.length; i++) {
+			if(clipboardNodes[i].x < minX) minX = clipboardNodes[i].x;
+			if(clipboardNodes[i].y < minY) minY = clipboardNodes[i].y;
+			if(clipboardNodes[i].x > maxX) maxX = clipboardNodes[i].x;
+			if(clipboardNodes[i].y > maxY) maxY = clipboardNodes[i].y;
+		}
+		var halfX = minX+(maxX-minX)/2;
+		var halfY = minY+(maxY-minY)/2;
+		for(var i=0; i<clipboardNodes.length; i++) {
+			clipboardNodes[i].x = realX+clipboardNodes[i].x-halfX;
+			clipboardNodes[i].y = realY+clipboardNodes[i].y-halfY;
+			nodes.push(clipboardNodes[i]);
+		}
+	}
+	
 	//SAVE - move pointer
 	function save() {
 		savePointer=undoStack.length-1;
@@ -1829,6 +1920,7 @@ $(document).ready(function() {
 				}
 				else i++;
 			}
+			//if(starts.length===0 || ends.length===0) return;
 			for(var i=0; i<starts.length; i++) {
 				for(var j=0; j<ends.length; j++) {
 					lines.push({a:starts[i], b:ends[j]});
@@ -1880,6 +1972,7 @@ $(document).ready(function() {
 	//REORGANIZE IDs after object delete/drag
 	function reorganize(pos) {
 		var uptop = [];
+		//LINES
 		for(var i=0; i<lines.length; i++) {
 			if(lines[i].a===pos) uptop.push([i, 1]);
 			if(lines[i].b===pos) uptop.push([i, 2]);
@@ -1894,6 +1987,18 @@ $(document).ready(function() {
 			if(lineLast>pos) lineLast--;
 			else if(lineLast===pos) lineLast=nodes.length-1;
 		}
+		if(tabID>0) {
+			if(tabID===pos) tabID = 0;
+			else if(tabID>pos) tabID--;
+		}
+		//SELECTION
+		if(selectedNodes.length===0) return;
+		uptop = false;
+		for(var i=0; i<selectedNodes.length; i++) {
+			if(selectedNodes[i]===pos) uptop = i;
+			else if(selectedNodes[i]>pos) selectedNodes[i]--;
+		}
+		if(uptop!==false) selectedNodes[uptop]=nodes.length-1;
 	}
 	
 	//CREATE New Object
@@ -1981,24 +2086,19 @@ $(document).ready(function() {
 		for(var i=lines.length-1; i>=0; i--) {
 			if(lines[i].a===id || lines[i].b===id) lines.splice(i, 1);
 		}
-		if(id<nodes.length-1) {
+		if(selectedNodes.length>0) selection.splice(id, 1);
+		if(id===nodes.length-1) nodes.splice(id, 1);
+		else {
 			nodes.splice(id, 1);
 			reorganize(id);
-		}
-		else nodes.splice(id, 1);
-		if(selection.length>0) {
-			if(selection[id]) selectedNodes--;
-			if(selectedNodes===0) selection=[];
-			else selection.splice(id, 1);
 		}
 		tabID=0;
 	}
 	function selectionDelete() {
-		var i = 0;
-		while(i<selection.length) {
-			if(selection[i]) deleteObj(i);
-			else i++;
+		for(var i=0; i<selectedNodes.length; i++) {
+			deleteObj(selectedNodes[i]);
 		}
+		selectionCancel();
 	}
 	
 	//EDIT object
@@ -2009,7 +2109,14 @@ $(document).ready(function() {
 				case 1: case 2: case 12://EDIT NAME (BUTTON, SWITCH, OUTPUT LAMP)
 					popupInput("Enter new name:", nodes[id].n, function() {
 						var name=formatText(popupValue());
-						if(name!==nodes[id].n) {
+						if(selectedNodes.length>0 && selection[id]) {
+							for(var i=0; i<selectedNodes.length; i++) {
+								if(nodes[selectedNodes[i]].t===nodes[id].t) nodes[selectedNodes[i]].n = name;
+							}
+							addUndo();
+							redraw();
+						}
+						else if(name!==nodes[id].n) {
 							nodes[id].n = name;
 							addUndo();
 							redraw();
@@ -2022,8 +2129,18 @@ $(document).ready(function() {
 						var delay = formatNum(popupValue());
 						if(delay===false || delay<0 || delay>3600000) errorBlink();
 						else {
-							nodes[id].d=Math.round(parseFloat(delay));
-							nodes[id].c=Math.round(parseFloat(delay));
+							if(selectedNodes.length>0 && selection[id]) {
+								for(var i=0; i<selectedNodes.length; i++) {
+									if(nodes[selectedNodes[i]].t===nodes[id].t) {
+										nodes[selectedNodes[i]].d=Math.round(parseFloat(delay));
+										nodes[selectedNodes[i]].c=Math.round(parseFloat(delay));
+									}
+								}
+							}
+							else {
+								nodes[id].d=Math.round(parseFloat(delay));
+								nodes[id].c=Math.round(parseFloat(delay));
+							}
 							addUndo();
 							redraw();
 							popupClose();
@@ -2031,8 +2148,18 @@ $(document).ready(function() {
 					});
 					break;
 				case 6: case 8://EDIT STARTING POWER (NOT, TOGGLE)
-					nodes[id].p = !nodes[id].p;
-					nodes[id].q = !nodes[id].q;
+					if(selectedNodes.length>0 && selection[id]) {
+						for(var i=0; i<selectedNodes.length; i++) {
+							if(nodes[selectedNodes[i]].t===nodes[id].t) {
+								nodes[selectedNodes[i]].q = !nodes[selectedNodes[i]].q
+								nodes[selectedNodes[i]].p = nodes[selectedNodes[i]].q
+							}
+						}
+					}
+					else {
+						nodes[id].q = !nodes[id].q;
+						nodes[id].p = nodes[id].q;
+					}
 					addUndo();
 					redraw();
 					break;
@@ -2046,8 +2173,18 @@ $(document).ready(function() {
 						else {
 							ctx.font = textSize+"px Arial";
 							var measure = toFixed(ctx.measureText(txt).width, 2);
-							nodes[id].n = txt;
-							nodes[id].w = measure;
+							if(selectedNodes.length>0 && selection[id]) {
+								for(var i=0; i<selectedNodes.length; i++) {
+									if(nodes[selectedNodes[i]].t===nodes[id].t) {
+										nodes[selectedNodes[i]].n = txt;
+										nodes[selectedNodes[i]].w = measure;
+									}
+								}
+							}
+							else {
+								nodes[id].n = txt;
+								nodes[id].w = measure;
+							}
 							addUndo();
 							redraw();
 							popupClose();
@@ -2071,7 +2208,7 @@ $(document).ready(function() {
 	
 	//DRAG object
 	function dragObj(id) {
-		if(id<nodes.length-1) uptopNode(id);
+		uptopNode(id);
 		dragIds=[nodes.length-1];
 		dragging = true;
 		tabID = 0;
@@ -2079,16 +2216,11 @@ $(document).ready(function() {
 		nodeMoveActivate();
 	}
 	function selectionDrag() {
-		var len = selection.length;
-		var j=0;
-		for(var i=0; i<len; i++) {
-			if(selection[j]) uptopNode(j);
-			else j++;
-		}
 		dragIds = [];
-		for(var i=0; i<selectedNodes; i++) {
-			dragIds.push(nodes.length-1-i);
+		for(var i=0; i<selectedNodes.length; i++) {
+			uptopNode(selectedNodes[i]);
 		}
+		dragIds = selectedNodes;
 		dragging = true;
 		tabID = 0;
 		redraw();
@@ -2097,11 +2229,12 @@ $(document).ready(function() {
 	
 	//BRING NODE ON TOP OF STACK
 	function uptopNode(id) {
+		if(id===nodes.length-1) return;
 		var obj = nodes[id];
 		nodes.splice(id, 1);
 		nodes.push(obj);
 		reorganize(id);
-		if(selectedNodes>0) {
+		if(selectedNodes.length>0) {
 			var sel = selection[id];
 			selection.splice(id, 1);
 			selection.push(sel);
@@ -2115,19 +2248,16 @@ $(document).ready(function() {
 		var x2=Math.max(realX, selectX);
 		var y2=Math.max(realY, selectY);
 		var newSelection = [];
-		selectedNodes=0;
+		selectedNodes = [];
 		for(var i = 0; i<nodes.length; i++) {
-			if(holdingCTRL && selection.length>0 && selection[i]) {
+			if((holdingCTRL && selection.length>0 && selection[i]) || (nodes[i].x>x1 && nodes[i].x<x2 && nodes[i].y>y1 && nodes[i].y<y2)) {
 				newSelection.push(true);
-				selectedNodes++;
-			}
-			else if(nodes[i].x>x1 && nodes[i].x<x2 && nodes[i].y>y1 && nodes[i].y<y2) {
-				newSelection.push(true);
-				selectedNodes++;
+				selectedNodes.push(i);
 			}
 			else newSelection.push(false);
 		}
-		selection = newSelection;
+		if(selectedNodes.length===0) selectionCancel();
+		else selection = newSelection;
 		redraw();
 	}
 	
@@ -2155,7 +2285,8 @@ $(document).ready(function() {
 			drawLine(nodes[lines[i].a].x, nodes[lines[i].a].y, nodes[lines[i].b].x, nodes[lines[i].b].y, lines[i].p);
 			//trying to skip off-screen lines would be more resource-intensive than actual drawing
 		}
-		onScreenNodes=0;
+		onScreenNodes = 0;
+		totalSelected = 0;
 		for(var i=0; i<nodes.length; i++) {
 			//SKIP OFF-SCREEN NODES
 			if(design[nodes[i].t].shape==="circle") {
@@ -2194,19 +2325,19 @@ $(document).ready(function() {
 					if(measure>design[12].width) drawText(nodes[i].x, nodes[i].y-(design[12].height/2)-(design[12].textSize/2)-2, txt, design[nodes[i].t].textColor, design[nodes[i].t].textSize);
 					else drawText(nodes[i].x, nodes[i].y, txt, design[nodes[i].t].textColor, design[nodes[i].t].textSize);
 				}
-				/*// DRAW TEXT ABOVE INPUTS WHEN TOO LONG
-				else if([1, 2].includes(nodes[i].t)) {
-					ctx.font = design[nodes[i].t].textSize+"px Arial";
-					var measure = toFixed(ctx.measureText(txt).width, 2)/2;
-					if(measure>getSizeR(i)) drawText(nodes[i].x, nodes[i].y-(getRadius(i))-(design[nodes[i].t].textSize/2)-2, txt, design[nodes[i].t].textColor, design[nodes[i].t].textSize);
-					else drawText(nodes[i].x, nodes[i].y, txt, design[nodes[i].t].textColor, design[nodes[i].t].textSize);
-				}
-				*/
 				else drawText(nodes[i].x, nodes[i].y, txt, design[nodes[i].t].textColor, design[nodes[i].t].textSize); 
 			}
 			
+			//IF DEBUG, DRAW NODE ID AND POS
+			if(debugShown) {
+				var txtpos = nodes[i].y+4+(debugNodeTextSize/2)+((design[nodes[i].t].shape==="circle")?getRadius(i):(getHeight(i)/2))
+				drawText(nodes[i].x, txtpos, "ID="+i+", x="+nodes[i].x+", y="+nodes[i].y, blackColor, debugNodeTextSize);
+				if(state!=="edit" && (nodes[i].t===3 || nodes[i].t===7)) drawText(nodes[i].x, txtpos+debugNodeTextSize, "countdown="+nodes[i].c, blackColor, debugNodeTextSize);
+			}
+			
 			//DRAW SELECTION OVER NODES
-			if(selectedNodes>0 && selection[i]) {
+			if(state==="edit" && ((selectedNodes.length>0 && selection[i]) || (selecting && (nodes[i].x>Math.min(realX, selectX) && nodes[i].x<Math.max(realX, selectX) && nodes[i].y>Math.min(realY, selectY) && nodes[i].y<Math.max(realY, selectY))))) {
+				totalSelected++;
 				if(design[nodes[i].t].shape==="circle") selectionCircle(nodes[i].x, nodes[i].y, getRadius(i));
 				else if(design[nodes[i].t].shape==="oval") selectionOval(nodes[i].x-getWidth(i)/2, nodes[i].y-getHeight(i)/2, nodes[i].x+getWidth(i)/2, nodes[i].y+getHeight(i)/2);
 				else if(nodes[i].t===13) selectionRect(nodes[i].x-getWidth(i)/2-4, nodes[i].y-getHeight(i)/2-4, nodes[i].x+getWidth(i)/2+4, nodes[i].y+getHeight(i)/2+4);
@@ -2215,12 +2346,12 @@ $(document).ready(function() {
 		}
 		if(lineStart!==false) drawLine(nodes[lineStart].x, nodes[lineStart].y, realX, realY, false);
 		if(selecting) drawSelection(selectX, selectY, realX, realY, true);
-		updateDebug();
+		if(debugShown) updateDebug();
 	}
 	
 	//UPDATE DEBUG INFO
 	function updateDebug() {
-		$("#debug").html("mouseX="+globalX+", mouseY="+globalY+"<br/>gridX="+realX+", gridY="+realY+"<br/>moveX="+canvasX+", moveY="+canvasY+"<br/>nodes: "+onScreenNodes+"/"+nodes.length+", lines: "+lines.length+", zoom: "+zoom+"<br/>TPS: "+Math.round(1000/tickSpeed)+", ticks: "+ticks);
+		$("#debug").html("mouseX="+globalX+", mouseY="+globalY+"<br/>gridX="+realX+", gridY="+realY+"<br/>moveX="+canvasX+", moveY="+canvasY+"<br/>nodes: "+onScreenNodes+"/"+nodes.length+", lines: "+lines.length+", zoom: "+zoom+"<br/>TPS: "+Math.round(1000/tickSpeed)+", ticks: "+ticks+(totalSelected>0?("<br/>selection: "+totalSelected):""));
 	}
 	
 	//GET CLICKED OBJECT ID
@@ -2260,26 +2391,30 @@ $(document).ready(function() {
 		//Click with selection
 		if(selected==="select") {
 			if(clickResult===false) {
-				if(selectedNodes>0) {
-					selection = [];
-					selectedNodes = 0;
-				}
+				if(selectedNodes.length>0 && !holdingCTRL) selectionCancel();
 				else return;
 			}
-			else if(holdingCTRL && selectedNodes>0) {
-				if(selection[clickResult]) selectedNodes--;
-				else selectedNodes++;
+			else if(holdingCTRL && selectedNodes.length>0) {
+				if(selection[clickResult]) {
+					for(var i=0; i<selectedNodes.length; i++) {
+						if(selectedNodes[i]===clickResult) {
+							selectedNodes.splice(i, 1);
+							break;
+						}
+					}
+				}
+				else selectedNodes.push(clickResult);
 				selection[clickResult]=!selection[clickResult];
-				if(selectedNodes===0) selection = [];
+				if(selectedNodes.length===0) selectionCancel();
 			}
-			else if(selectedNodes===1 && selection[clickResult]) return;
+			else if(selectedNodes.length===1 && selection[clickResult]) return;
 			else {
-				selection = [];
-				selectedNodes = 1;
+				selectionCancel();
 				for(var i = 0; i<nodes.length; i++) {
 					if(i===clickResult) selection.push(true);
 					else selection.push(false);
 				}
+				selectedNodes.push(clickResult);
 			}
 		}//Click with line
 		else if(selected==="line" || (selected==="edit" && lineStart!==false)) {
@@ -2302,13 +2437,12 @@ $(document).ready(function() {
 			}
 			else return;
 		}//Click with node
-		else if(![/*"select", */"edit", "delete", "replace"].includes(selected)) {
+		else if(!["edit", "delete", "replace"].includes(selected)) {
 			if(clickResult===false) {//CREATE NEW OBJECT
+				selectionCancel();
 				var newObj = createNewObj(selectedNode, x, y);
 				if(newObj===false) return;
 				else nodes.push(newObj);
-				selection = [];
-				selectedNodes=0;
 				tabID=0;
 				addUndo();
 			}
@@ -2332,7 +2466,7 @@ $(document).ready(function() {
 			}//DELETE Object/Line
 			else if(selected==="delete") {
 				if(clickResult!==false) {//DELETE OBJECT
-					if(selectedNodes>0 && selection[clickResult]) selectionDelete();
+					if(selectedNodes.length>0 && selection[clickResult]) selectionDelete();
 					else deleteObj(clickResult);
 					addUndo();
 				}
