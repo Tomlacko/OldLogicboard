@@ -58,7 +58,7 @@ input[type=text], input[type=number] {
 }
 
 .redBlink {
-	background-color:#C00;
+	background-color:#F22;
 }
 
 .redFade {
@@ -229,6 +229,7 @@ input[type=text], input[type=number] {
 	background-color:#CCC;
 	padding-top:2px;
 	padding-bottom:2px;
+	position:relative;
 }
 
 #panel * {
@@ -240,7 +241,7 @@ input[type=text], input[type=number] {
 	margin-right:5px;
 }
 
-#MoveControls .button, #EditControls .button, #StopControls .button, #StartControls .button {
+#MainControls .button, #ClipboardControls .button, #StopControls .button, #StartControls .button {
 	margin-left:2px;
 }
 
@@ -248,8 +249,9 @@ input[type=text], input[type=number] {
 	margin-right:2px;
 }
 
-#MoveControls {
-	margin-left:calc(50% - 254.5px);
+#MainControls {
+	position:absolute;
+	left:calc(50% - 135px);
 }
 
 #nodebarContainer {

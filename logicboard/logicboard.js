@@ -1,5 +1,4 @@
-$(document).ready(function() {
-	
+$(window).load(function() {
 	function drawCircle(x, y, r, power, outline) {
 		if(power) ctx.fillStyle = nodePoweredColor;
 		else ctx.fillStyle = nodeUnpoweredColor;
@@ -125,6 +124,13 @@ $(document).ready(function() {
 	function degToRad(deg) {
 		return deg*(Math.PI/180);
 	}
+	
+	//ADD NUMERICAL SORT FOR ARRAYS 
+	Array.prototype.numSort = function() {
+		return this.sort(function(a, b) {
+			return a - b;
+		});
+	};
 	
 	//POLYFILF IF BROWSER DOES NOT SUPPORT .includes
 	if(!Array.prototype.includes) Array.prototype.includes = function(searchElement) {
@@ -264,8 +270,9 @@ $(document).ready(function() {
 	var realY = 0;
 	var clipboardX = 0;
 	var clipboardY = 0;
-	var dragIds = [];
 	var tabID = 0;
+	var dragId = 0;
+	
 	var dragging = false;
 	var panning = false;
 	var selecting = false;
@@ -305,6 +312,7 @@ $(document).ready(function() {
 	var alignActivated = false;
 	var edgeSize = 14;
 	var gridSpacing = 42;
+	var half = gridSpacing/2;
 	
 	var fontSize = 16;
 	var textSize = 28;
@@ -489,12 +497,12 @@ $(document).ready(function() {
 		}
 	];
 	
-	$(window).trigger("resize");
+	setTimeout(function() {$(window).trigger("resize");}, 50);
 	if(mobile) $("#mobileAlign").removeClass("hidden");
 	addUndo();
 	
 	/*
-	TAGS:   r,x,y, *s=shape*, n=name/note, t=type, p=powered, a=startID, b=endID, d=delay, c=countdown, f=fired, q=startPowered, w=width(text)
+	TAGS:   r,x,y, *s=shape*, n=name/note/text, t=type, p=powered, a=startID, b=endID, d=delay, c=countdown, f=fired, q=startPowered, w=width(text)
 	
 	SHAPES: c=circle, r=rect=rectangle, o=oval
 	
@@ -575,7 +583,7 @@ $(document).ready(function() {
 	
 	//new project
 	$("#new").on("click", function() {
-		popupConfirm(unsaved()?"There are unsaved changes in this project.<br /><br />Are you sure you want to start a new one?":"Are you sure you want<br />to start a new project?", function() {
+		popupConfirm(unsaved()?"Are you sure you want to start a new project?<br /><br />(All unsaved changes will be lost!)":"Are you sure you want to start a new project?", function() {
 			if(state!=="edit") stopSimulation();
 			nodes=[];
 			lines=[];
@@ -656,7 +664,7 @@ $(document).ready(function() {
 	$("#inputFile").change(function() {
 		var file=document.getElementById("inputFile").files[0];
 		var inp=$("#inputFile");
-		inp.replaceWith(inp=inp.clone(true));
+		inp.replaceWith(inp.clone(true));
 		var fName = file.name;
 		if(fName.slice(-4)!==".lgb") popupMsg("Unsupported file type!");
 		else if(file.size>50000000/*50MB*/) popupMsg("The file is too big!<br />(Maximum: 50MB)");
@@ -1045,6 +1053,19 @@ $(document).ready(function() {
 		redo();
 	});
 	
+	//BUTTON copy
+	$("#copy").on("click", function() {
+		clipboardCopy();
+	});
+	
+	//BUTTON paste
+	$("#paste").on("click", function() {
+		if(clipboardPaste(midX/zoom-canvasX, midY/zoom-canvasY)) {
+			addUndo();
+			redraw();
+		}
+	});
+	
 	//Track CTRL/SHIFT state
 	$(document).on("keyup", function(key) {
 		var keyID = parseInt(key.which, 10);
@@ -1054,7 +1075,7 @@ $(document).ready(function() {
 	
 	//KEYDOWN on canvas
 	$(document).on("keydown", function(key) {
-		//82=r, 17=ctrl, 70=f, 71=g, 192=~, 16=shift, 46=delete, 27=ESC, 13=ENTER, 32=Space, 9=TAB, 109=-, 107=+, 69=e, 81=q, 89=y, 90=z, 73=i, 112=F1, 80=p, 67=c, 86=v, 88=x
+		//82=r, 17=ctrl, 70=f, 71=g, 192=~, 16=shift, 46=delete, 27=ESC, 13=ENTER, 32=Space, 9=TAB, 109=-, 107=+, 69=e, 81=q, 89=y, 90=z, 73=i, 112=F1, 80=p, 67=c, 86=v, 88=x, 76=L, 78=n
 		//w=87 a=65 s=83 d=68  -  up=38 left=37 down=40 right=39
 		var keyID = parseInt(key.which,10);
 		//console.log(keyID);
@@ -1093,16 +1114,27 @@ $(document).ready(function() {
 		
 		//KEY SHIFT - align to grid
 		if(keyID===16 && state==="edit" && obj!==false && !lastSHIFT && !selecting) {
-			var oldX = nodes[obj].x;
-			var oldY = nodes[obj].y;
-			var half = gridSpacing/2;
-			nodes[obj].x=Math.round(nodes[obj].x/half)*half;
-			nodes[obj].y=Math.round(nodes[obj].y/half)*half;
-			if(oldX!==nodes[obj].x || oldY!==nodes[obj].y) {
+			var adjustX = (Math.round(nodes[obj].x/half)*half)-nodes[obj].x;
+			var adjustY = (Math.round(nodes[obj].y/half)*half)-nodes[obj].y;
+			if(adjustX!==0 || adjustY!==0) {
+				if(selectedNodes.length>1 && selection[obj]) {
+					for(var i=0; i<selectedNodes.length; i++) {
+						nodes[selectedNodes[i]].x+=adjustX;
+						nodes[selectedNodes[i]].y+=adjustY;
+						uptopNode(selectedNodes[i]);
+					}
+				}
+				else {
+					nodes[obj].x+=adjustX;
+					nodes[obj].y+=adjustY;
+					uptopNode(obj);
+				}
+				selectedNodes.numSort();
+				tabID = 0;
 				addUndo();
 				redraw();
 			}
-		}//KEY Pause/Break - Print debug
+		}//KEY Pause/Break - print debug
 		else if(keyID===19) {
 			key.preventDefault();
 			console.log(nodes, clipboardNodes, selectedNodes);
@@ -1110,7 +1142,15 @@ $(document).ready(function() {
 		else if(keyID===112 && !holdingClick) {
 			key.preventDefault();
 			$("#info").trigger("click");
-		}//KEY CTRL+A - select all
+		}//KEY L - show loadFile
+		else if(keyID===76 && !holdingClick) {
+			key.preventDefault();
+			$("#load").trigger("click");
+		}//KEY N - new project
+		else if(keyID===78 && !holdingClick) {
+			key.preventDefault();
+			$("#new").trigger("click");
+		}//KEY CTRL+A - elect all
 		else if(keyID===65 && state==="edit" && holdingCTRL && !holdingClick) {
 			if(selectedNodes.length===nodes.length) return;
 			selectionCancel();
@@ -1118,6 +1158,7 @@ $(document).ready(function() {
 				selection.push(true);
 				selectedNodes.push(i);
 			}
+			$("#copy").removeClass("disabled");
 			redraw();
 		}//KEY I - invert selection
 		else if(keyID===73 && !holdingClick && state==="edit" && selectedNodes.length>0) {
@@ -1127,21 +1168,27 @@ $(document).ready(function() {
 				selection[i]=!selection[i];
 			}
 			if(selectedNodes.length===0) selectionCalcel();
+			else $("#copy").removeClass("disabled");
 			redraw();
 		}//KEY C - copy selection to clipboard
 		else if(keyID===67 && state==="edit" && !holdingClick) {
 			clipboardCopy();
 		}//KEY V - paste from clipboard
 		else if(keyID===86 && state==="edit" && !holdingClick) {
-			clipboardPaste();
+			if(clipboardPaste(realX, realY)) {
+				addUndo();
+				redraw();
+			}
 		}//KEY X - cut selection to clipboard
 		else if(keyID===88 && state==="edit" && !holdingClick) {
-			clipboardCopy();
-			selectionDelete();
-			addUndo();
-			redraw();
+			if(clipboardCopy()) {
+				selectionDelete();
+				addUndo();
+				redraw();
+			}
 		}//KEY CTRL+S - save
-		else if(keyID===83 && !holdingClick) {
+		else if(keyID===83 && !holdingClick && holdingCTRL) {
+			key.preventDefault();
 			$("#save").trigger("click");
 		}//KEY F - quick new line
 		else if(keyID===70 && state==="edit" && !holdingClick && lineLast!==false && selected==="line") {
@@ -1344,7 +1391,6 @@ $(document).ready(function() {
 				else {
 					var objID = getClickedNode(startClickXr, startClickYr);
 					if(objID===false || lineStart!==false) panActivate();
-					else if(selectedNodes.length>1 && selection[objID]) selectionDrag();
 					else dragObj(objID);
 				}
 				enableAltClickEnd();
@@ -1353,7 +1399,7 @@ $(document).ready(function() {
 	}//alternative mouse move - state not edit
 	function enableAltMove() {
 		$("#canvas").on(mobile?"touchmove.alt":"mousemove.alt", function() {
-			if(Math.abs(startClickX-globalX)>(mobile?4:2) || Math.abs(startClickY-globalY)>(mobile?4:2)) {
+			if(Math.abs(startClickX-globalX)>cursorMoveTol || Math.abs(startClickY-globalY)>cursorMoveTol) {
 				$("#canvas").off(mobile?"touchmove.alt":"mousemove.alt");
 				panActivate();
 			}
@@ -1402,7 +1448,7 @@ $(document).ready(function() {
 			if(selectStop()) {
 				edgeScrollStop();
 				selectArea();
-				//if(!holdingCTRL) $("#select").trigger("click");
+				if(!holdingCTRL) $("#select").trigger("click");
 			}
 		}
 	});
@@ -1445,15 +1491,30 @@ $(document).ready(function() {
 	function dragMovePos() {
 		var moveX = realX-dragLastX;
 		var moveY = realY-dragLastY;
-		if(dragIds.length===1 && (holdingSHIFT || alignActivated)) {
-			var half = gridSpacing/2;
-			nodes[dragIds[0]].x=Math.round(realX/half)*half;
-			nodes[dragIds[0]].y=Math.round(realY/half)*half;
+		if(selectedNodes.length>1 && selection[dragId]) {
+			if(holdingSHIFT || alignActivated) {
+				var adjustX = (Math.round(realX/half)*half)-nodes[dragId].x;
+				var adjustY = (Math.round(realY/half)*half)-nodes[dragId].y;
+				for(var i=0; i<selectedNodes.length; i++) {
+					nodes[selectedNodes[i]].x+=adjustX;
+					nodes[selectedNodes[i]].y+=adjustY;
+				}
+			}
+			else {
+				for(var i=0; i<selectedNodes.length; i++) {
+					nodes[selectedNodes[i]].x+=moveX;
+					nodes[selectedNodes[i]].y+=moveY;
+				}
+			}
 		}
 		else {
-			for(var i=0; i<dragIds.length; i++) {
-				nodes[dragIds[i]].x+=moveX;
-				nodes[dragIds[i]].y+=moveY;
+			if(holdingSHIFT || alignActivated) {
+				nodes[dragId].x=Math.round(realX/half)*half;
+				nodes[dragId].y=Math.round(realY/half)*half;
+			}
+			else {
+				nodes[dragId].x+=moveX;
+				nodes[dragId].y+=moveY;
 			}
 		}
 		dragLastX = realX;
@@ -1541,6 +1602,7 @@ $(document).ready(function() {
 	function selectionCancel() {
 		selection = [];
 		selectedNodes = [];
+		$("#copy").addClass("disabled");
 	}
 	
 	//MOUSE pan / translate canvas - mousemove
@@ -1646,6 +1708,13 @@ $(document).ready(function() {
 		}, 150);
 	}
 	
+	//Click outside popup
+	$("#popupWrap").on("click", function(e) {
+		if(e.target!==this) return;
+		if(popupShown==="confirm" || popupShown==="input") $("#popupCancel").trigger("click");
+		else if(popupShown==="msg") $("#popupClose").trigger("click");
+	});
+	
 	/*-----------------------------CANVAS-LOGIC------------------------------------------------------*/
 	
 	//check if SAVED
@@ -1661,9 +1730,10 @@ $(document).ready(function() {
 		state="edit";
 		$("#StartControls").removeClass("hidden");
 		$("#StopControls").addClass("hidden");
+		$("#ClipboardControls").removeClass("hidden");
 		$("#pause").attr("src", "icons/pause.svg");
 		$("#step").addClass("disabled");
-		$(".node, #EditControls .button").removeClass("disabled");
+		$("#MainControls .button").slice(-4).add(".node").removeClass("disabled");
 		if(selected!=="line" && $("#place"+selected).length!==0) $("#place, #place"+selected).removeClass("hidden");
 		if(selected==="select") $("#canvas").addClass("cursor_cross");
 		resetPower();
@@ -1674,7 +1744,8 @@ $(document).ready(function() {
 	function startSimulation() {
 		$("#StartControls").addClass("hidden");
 		$("#StopControls").removeClass("hidden");
-		$(".node, #EditControls .button").addClass("disabled");
+		$("#ClipboardControls").addClass("hidden");
+		$("#MainControls .button").slice(-4).add(".node").addClass("disabled");
 		$("#place").addClass("hidden");
 		$("#canvas").removeClass("cursor_cross");
 		lineStop();
@@ -1898,9 +1969,14 @@ $(document).ready(function() {
 		redraw();
 	}
 	
+	//SAVE - move pointer
+	function save() {
+		savePointer=undoStack.length-1;
+	}
+	
 	//COPY to CLIPBOARD
 	function clipboardCopy() {
-		if(selectedNodes.length===0) return false;
+		if(selectedNodes.length===0 || state!=="edit") return false;
 		clipboardNodes = [];
 		clipboardLines = [];
 		var newAssign = {};
@@ -1925,31 +2001,36 @@ $(document).ready(function() {
 		}
 		clipboardX = minX+(maxX-minX)/2;
 		clipboardY = minY+(maxY-minY)/2;
+		$("#paste").removeClass("disabled");
 		return true;
 	}
 	
 	//PASTE from CLIPBOARD
-	function clipboardPaste() {
-		if(clipboardNodes.length===0) return false;
+	function clipboardPaste(x, y) {
+		if(clipboardNodes.length===0 || state!=="edit") return false;
 		selectionCancel();
 		var newNodes = JSON.parse(JSON.stringify(clipboardNodes));
 		var newLines = JSON.parse(JSON.stringify(clipboardLines));
 		for(var i=0; i<nodes.length; i++) {
 			selection.push(false);
 		}
-		var align = (holdingSHIFT || alignActivated);
-		var half = gridSpacing/2;
-		for(var i=0; i<newNodes.length; i++) {
-			if(align) {
-				newNodes[i].x = Math.round((realX+newNodes[i].x-clipboardX)/half)*half;
-				newNodes[i].y = Math.round((realY+newNodes[i].y-clipboardY)/half)*half;
+		if(holdingSHIFT || alignActivated) {
+			var adjustX = Math.round((x+newNodes[0].x-clipboardX)/half)*half-newNodes[0].x;
+			var adjustY = Math.round((y+newNodes[0].y-clipboardY)/half)*half-newNodes[0].y;
+			for(var i=0; i<newNodes.length; i++) {
+				newNodes[i].x+=adjustX;
+				newNodes[i].y+=adjustY;
+				selectedNodes.push(selection.length);
+				selection.push(true);
 			}
-			else {
-				newNodes[i].x = realX+newNodes[i].x-clipboardX;
-				newNodes[i].y = realY+newNodes[i].y-clipboardY;
+		}
+		else {
+			for(var i=0; i<newNodes.length; i++) {
+				newNodes[i].x = x+newNodes[i].x-clipboardX;
+				newNodes[i].y = y+newNodes[i].y-clipboardY;
+				selectedNodes.push(selection.length);
+				selection.push(true);
 			}
-			selectedNodes.push(selection.length);
-			selection.push(true);
 		}
 		var len = nodes.length;
 		for(var i=0; i<newLines.length; i++) {
@@ -1959,15 +2040,9 @@ $(document).ready(function() {
 		nodes = nodes.concat(newNodes);
 		lines = lines.concat(newLines);
 		if(selected==="select") $("#select").trigger("click");
+		$("#copy").removeClass("disabled");
 		tabID=0;
-		addUndo();
-		redraw();
 		return true;
-	}
-	
-	//SAVE - move pointer
-	function save() {
-		savePointer=undoStack.length-1;
 	}
 	
 	//Replace object
@@ -2036,59 +2111,28 @@ $(document).ready(function() {
 		return true;
 	}
 	
-	//Find duplicate line - prevent creating multiple identical lines
-	function findDuplicateLine(id) {
-		for(var i=0; i<lines.length; i++) {
-			if(lines[i].a===lineStart && lines[i].b===id) return true;
-		}
-		return false;
-	}
-	
-	//REORGANIZE IDs after object delete/drag
-	function reorganize(pos) {
-		var uptop = [];
-		//LINES
-		for(var i=0; i<lines.length; i++) {
-			if(lines[i].a===pos) uptop.push([i, 1]);
-			if(lines[i].b===pos) uptop.push([i, 2]);
-			if(lines[i].a>pos) lines[i].a--;
-			if(lines[i].b>pos) lines[i].b--;
-		}
-		for(var i=0; i<uptop.length; i++) {
-			if(uptop[i][1]===1) lines[uptop[i][0]].a=nodes.length-1;
-			if(uptop[i][1]===2) lines[uptop[i][0]].b=nodes.length-1;
-		}
-		if(lineLast!==false) {
-			if(lineLast>pos) lineLast--;
-			else if(lineLast===pos) lineLast=nodes.length-1;
-		}
-		if(tabID>0) {
-			if(tabID===pos) tabID = 0;
-			else if(tabID>pos) tabID--;
-		}
-		//SELECTION
-		if(selectedNodes.length===0) return;
-		uptop = false;
-		for(var i=0; i<selectedNodes.length; i++) {
-			if(selectedNodes[i]===pos) uptop = i;
-			else if(selectedNodes[i]>pos) selectedNodes[i]--;
-		}
-		if(uptop!==false) selectedNodes[uptop]=nodes.length-1;
-	}
-	
 	//CREATE New Object
 	function createNewObj(type, x, y) {
 		if(type!==12 && (holdingSHIFT || alignActivated)) {
-			var half = gridSpacing/2;
 			x = Math.round(x/half)*half;
 			y = Math.round(y/half)*half;
 		}
 		switch(type) {
 			case 1://SWITCH
-				return {t:1, n:formatText($("#place"+type+" input").val(), "Switch"), p:false, x:x, y:y};
+				var txt = formatText($("#place"+type+" input").val(), "");
+				if(txt.length>100) {
+					popupMsg("The name is too long!<br />(Maximum length: 100)");
+					return false;
+				}
+				return {t:1, n:txt, p:false, x:x, y:y};
 				break;
 			case 2://BUTTON
-				return {t:2, n:formatText($("#place"+type+" input").val(), "Button"), p:false, x:x, y:y};
+				var txt = formatText($("#place"+type+" input").val(), "");
+				if(txt.length>100) {
+					popupMsg("The name is too long!<br />(Maximum length: 100)");
+					return false;
+				}
+				return {t:2, n:txt, p:false, x:x, y:y};
 				break;
 			case 3://PULSER
 				var delay=formatNum($("#place"+type+" input").val());
@@ -2139,16 +2183,21 @@ $(document).ready(function() {
 				//nodes.push({t:11, p:false, f:false, n:note, x:x, y:y});
 				break;
 			case 12://OUTPUT LAMP
+				var txt = formatText($("#place"+type+" input").val(), "");
+				if(txt.length>100) {
+					popupMsg("The name is too long!<br />(Maximum length: 100)");
+					return false;
+				}
 				if(holdingSHIFT || alignActivated) {
-					var half = gridSpacing/2;
 					x = Math.round((x+half)/gridSpacing)*gridSpacing-half;
 					y = Math.round((y+half)/gridSpacing)*gridSpacing-half;
 				}
-				return {t:12, p:false, n:formatText($("#place"+type+" input").val()), x:x, y:y};
+				return {t:12, p:false, n:txt, x:x, y:y};
 				break;
 			case 13://TEXT
 				var txt = formatText($("#place"+type+" input").val())
 				if(txt==="") {
+					popupMsg("Text cannot be empty!");
 					return false;
 				}
 				else if(txt.length>100) {
@@ -2190,24 +2239,27 @@ $(document).ready(function() {
 	//EDIT object
 	function editObj(id, lineID) {
 		if(id!==false) {
-			if(!design[nodes[id].t].editable) return;
+			if(!design[nodes[id].t].editable) return false;
 			switch(nodes[id].t) {
 				case 1: case 2: case 12://EDIT NAME (BUTTON, SWITCH, OUTPUT LAMP)
 					popupInput("Enter new name:", nodes[id].n, function() {
 						var name=formatText(popupValue());
-						if(selectedNodes.length>0 && selection[id]) {
-							for(var i=0; i<selectedNodes.length; i++) {
-								if(nodes[selectedNodes[i]].t===nodes[id].t) nodes[selectedNodes[i]].n = name;
+						if(selectedNodes.length<2 && name===nodes[id].n) {
+							popupClose();
+							return;
+						}
+						if(name.length>100) errorBlink();
+						else {
+							if(selectedNodes.length>1 && selection[id]) {
+								for(var i=0; i<selectedNodes.length; i++) {
+									if(nodes[selectedNodes[i]].t===nodes[id].t) nodes[selectedNodes[i]].n = name;
+								}
 							}
+							else nodes[id].n = name;
 							addUndo();
 							redraw();
+							popupClose();
 						}
-						else if(name!==nodes[id].n) {
-							nodes[id].n = name;
-							addUndo();
-							redraw();
-						}
-						popupClose();
 					});
 					break;
 				case 3: case 7://EDIT DELAY (PULSER, DELAY)
@@ -2215,7 +2267,7 @@ $(document).ready(function() {
 						var delay = formatNum(popupValue());
 						if(delay===false || delay<0 || delay>3600000) errorBlink();
 						else {
-							if(selectedNodes.length>0 && selection[id]) {
+							if(selectedNodes.length>1 && selection[id]) {
 								for(var i=0; i<selectedNodes.length; i++) {
 									if(nodes[selectedNodes[i]].t===nodes[id].t) {
 										nodes[selectedNodes[i]].d=Math.round(parseFloat(delay));
@@ -2234,7 +2286,7 @@ $(document).ready(function() {
 					});
 					break;
 				case 6: case 8://EDIT STARTING POWER (NOT, TOGGLE)
-					if(selectedNodes.length>0 && selection[id]) {
+					if(selectedNodes.length>1 && selection[id]) {
 						for(var i=0; i<selectedNodes.length; i++) {
 							if(nodes[selectedNodes[i]].t===nodes[id].t) {
 								nodes[selectedNodes[i]].q = !nodes[selectedNodes[i]].q
@@ -2255,11 +2307,15 @@ $(document).ready(function() {
 				case 13://EDIT TEXT (TEXT)
 					popupInput("Edit text:", nodes[id].n, function() {
 						var txt = formatText(popupValue());
-						if(txt==="" || txt===nodes[id].n || txt>100) errorBlink();
+						if(txt==="" || txt.length>100) errorBlink();
 						else {
+							if(selectedNodes.length<2 && txt===nodes[id].n) {
+								popupClose();
+								return;
+							}
 							ctx.font = textSize+"px Arial";
 							var measure = toFixed(ctx.measureText(txt).width, 2);
-							if(selectedNodes.length>0 && selection[id]) {
+							if(selectedNodes.length>1 && selection[id]) {
 								for(var i=0; i<selectedNodes.length; i++) {
 									if(nodes[selectedNodes[i]].t===nodes[id].t) {
 										nodes[selectedNodes[i]].n = txt;
@@ -2294,19 +2350,14 @@ $(document).ready(function() {
 	
 	//DRAG object
 	function dragObj(id) {
-		uptopNode(id);
-		dragIds=[nodes.length-1];
-		dragging = true;
-		tabID = 0;
-		redraw();
-		nodeMoveActivate();
-	}
-	function selectionDrag() {
-		dragIds = [];
-		for(var i=0; i<selectedNodes.length; i++) {
-			uptopNode(selectedNodes[i]);
+		dragId = id;
+		if(selectedNodes.length>1 && selection[id]) {
+			for(var i=0; i<selectedNodes.length; i++) {
+				uptopNode(selectedNodes[i]);
+			}
 		}
-		dragIds = selectedNodes;
+		else uptopNode(id);
+		selectedNodes.numSort();
 		dragging = true;
 		tabID = 0;
 		redraw();
@@ -2327,6 +2378,49 @@ $(document).ready(function() {
 		}
 	}
 	
+	//REORGANIZE IDs after object delete/drag
+	function reorganize(pos) {
+		var uptop = [];
+		//LINES
+		for(var i=0; i<lines.length; i++) {
+			if(lines[i].a===pos) uptop.push([i, 1]);
+			if(lines[i].b===pos) uptop.push([i, 2]);
+			if(lines[i].a>pos) lines[i].a--;
+			if(lines[i].b>pos) lines[i].b--;
+		}
+		for(var i=0; i<uptop.length; i++) {
+			if(uptop[i][1]===1) lines[uptop[i][0]].a=nodes.length-1;
+			if(uptop[i][1]===2) lines[uptop[i][0]].b=nodes.length-1;
+		}
+		if(lineLast!==false) {
+			if(lineLast>pos) lineLast--;
+			else if(lineLast===pos) lineLast=nodes.length-1;
+		}
+		if(tabID>0) {
+			if(tabID===pos) tabID = 0;
+			else if(tabID>pos) tabID--;
+		}
+		//Dragged obj
+		if(dragId>pos) dragId--;
+		else if(dragId===pos) dragId = nodes.length-1;
+		//SELECTION
+		if(selectedNodes.length===0) return;
+		uptop = false;
+		for(var i=0; i<selectedNodes.length; i++) {
+			if(selectedNodes[i]===pos) uptop = i;
+			else if(selectedNodes[i]>pos) selectedNodes[i]--;
+		}
+		if(uptop!==false) selectedNodes[uptop]=nodes.length-1;
+	}
+	
+	//Find duplicate line - prevent creating multiple identical lines
+	function findDuplicateLine(id) {
+		for(var i=0; i<lines.length; i++) {
+			if(lines[i].a===lineStart && lines[i].b===id) return true;
+		}
+		return false;
+	}
+	
 	//SELECT AREA
 	function selectArea() {
 		var x1=Math.min(realX, selectX);
@@ -2343,7 +2437,10 @@ $(document).ready(function() {
 			else newSelection.push(false);
 		}
 		if(selectedNodes.length===0) selectionCancel();
-		else selection = newSelection;
+		else {
+			selection = newSelection;
+			$("#copy").removeClass("disabled");
+		}
 		redraw();
 	}
 	
@@ -2369,11 +2466,18 @@ $(document).ready(function() {
 		if(showGrid && zoom>=0.125) drawGrid();
 		for(var i=0; i<lines.length; i++) {
 			drawLine(nodes[lines[i].a].x, nodes[lines[i].a].y, nodes[lines[i].b].x, nodes[lines[i].b].y, lines[i].p);
-			//trying to skip off-screen lines would be more resource-intensive than actual drawing
+			//trying to skip off-screen lines would be more resource-intensive than actual drawing(?)
 		}
 		onScreenNodes = 0;
 		totalSelected = 0;
 		for(var i=0; i<nodes.length; i++) {
+			//IS NODE SELECTED?
+			var isSelected = false;
+			if(state==="edit" && ((selectedNodes.length>0 && selection[i]) || (selecting && (nodes[i].x>Math.min(realX, selectX) && nodes[i].x<Math.max(realX, selectX) && nodes[i].y>Math.min(realY, selectY) && nodes[i].y<Math.max(realY, selectY))))) {
+				totalSelected++;
+				isSelected = true;
+			}
+			
 			//SKIP OFF-SCREEN NODES
 			if(design[nodes[i].t].shape==="circle") {
 				if((nodes[i].x+getRadius(i))<(-canvasX) || (nodes[i].y+getRadius(i))<(-canvasY) || (nodes[i].x-getRadius(i))>(-canvasX+(width/zoom)) || (nodes[i].y-getRadius(i))>(-canvasY+(height/zoom))) continue;
@@ -2422,8 +2526,7 @@ $(document).ready(function() {
 			}
 			
 			//DRAW SELECTION OVER NODES
-			if(state==="edit" && ((selectedNodes.length>0 && selection[i]) || (selecting && (nodes[i].x>Math.min(realX, selectX) && nodes[i].x<Math.max(realX, selectX) && nodes[i].y>Math.min(realY, selectY) && nodes[i].y<Math.max(realY, selectY))))) {
-				totalSelected++;
+			if(isSelected) {
 				if(design[nodes[i].t].shape==="circle") selectionCircle(nodes[i].x, nodes[i].y, getRadius(i));
 				else if(design[nodes[i].t].shape==="oval") selectionOval(nodes[i].x-getWidth(i)/2, nodes[i].y-getHeight(i)/2, nodes[i].x+getWidth(i)/2, nodes[i].y+getHeight(i)/2);
 				else if(nodes[i].t===13) selectionRect(nodes[i].x-getWidth(i)/2-4, nodes[i].y-getHeight(i)/2-4, nodes[i].x+getWidth(i)/2+4, nodes[i].y+getHeight(i)/2+4);
@@ -2481,15 +2584,11 @@ $(document).ready(function() {
 				else return;
 			}
 			else if(holdingCTRL && selectedNodes.length>0) {
-				if(selection[clickResult]) {
-					for(var i=0; i<selectedNodes.length; i++) {
-						if(selectedNodes[i]===clickResult) {
-							selectedNodes.splice(i, 1);
-							break;
-						}
-					}
+				if(selection[clickResult]) selectedNodes.splice(selectedNodes.indexOf(clickResult), 1);
+				else {
+					selectedNodes.push(clickResult);
+					selectedNodes.numSort();
 				}
-				else selectedNodes.push(clickResult);
 				selection[clickResult]=!selection[clickResult];
 				if(selectedNodes.length===0) selectionCancel();
 			}
@@ -2501,6 +2600,7 @@ $(document).ready(function() {
 					else selection.push(false);
 				}
 				selectedNodes.push(clickResult);
+				$("#copy").removeClass("disabled");
 			}
 		}//Click with line
 		else if(selected==="line" || (selected==="edit" && lineStart!==false)) {
@@ -2532,13 +2632,30 @@ $(document).ready(function() {
 				tabID=0;
 				addUndo();
 			}
-			else {//Bring object on top of stack (foreground)
-				if(clickResult<nodes.length-1) {
-					uptopNode(clickResult);
-					tabID = 0;
-					addUndo();
+			else {//Bring object/selection on top of stack (foreground)
+				if(selectedNodes.length>1 && selection[clickResult]) {
+					var reorg=false;
+					for(var i=0; i<selection.length; i++) {
+						if(selection[i]) {
+							for(var j=i+1; j<selection.length; j++) {
+								if(!selection[j]) {
+									reorg = true;
+									break;
+								}
+							}
+							break;
+						}
+					}
+					if(!reorg) return;
+					for(var i=0; i<selectedNodes.length; i++) {
+						uptopNode(selectedNodes[i]);
+					}
 				}
+				else if(clickResult<nodes.length-1) uptopNode(clickResult);
 				else return;
+				selectedNodes.numSort();
+				tabID = 0;
+				addUndo();
 			}
 		}
 		else {//ALL OTHER TOOLS

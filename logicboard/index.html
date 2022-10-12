@@ -124,15 +124,17 @@
 				<img src="icons/undo.png" id="undo" class="button disabled" title="Undo" alt="Undo" />
 				<img src="icons/redo.png" id="redo" class="button disabled" title="Redo" alt="Redo" />
 			</div>
-			<div id="MoveControls">
+			<div id="ClipboardControls">
+				<img src="icons/copy.png" id="copy" class="button disabled" title="Copy selection" alt="Copy" />
+				<img src="icons/paste.png" id="paste" class="button disabled" title="Paste selection" alt="Paste" />
+			</div>
+			<div id="MainControls">
 				<img src="icons/left.svg" id="move_left" class="button" title="Move Left" alt="Move left" />
 				<img src="icons/up.svg" id="move_up" class="button" title="Move Up" alt="Move up" />
 				<img src="icons/down.svg" id="move_down" class="button" title="Move Down" alt="Move down" />
 				<img src="icons/right.svg" id="move_right" class="button" title="Move Right" alt="Move right" />
 				<img src="icons/zoom.svg" id="zoom" class="button" title="Zoom+" alt="Zoom+" />
 				<img src="icons/unzoom.svg" id="unzoom" class="button" title="Zoom-" alt="Zoom-" />
-			</div>
-			<div id="EditControls">
 				<img src="icons/select.svg" id="select" class="button" title="Select Objects" alt="Selection" />
 				<img src="icons/edit.svg" id="edit" class="button" title="Edit Object" alt="Edit" />
 				<img src="icons/delete.png" id="delete" class="button" title="Delete Object" alt="Delete" />
@@ -143,7 +145,7 @@
 				<img src="icons/save.svg" id="save" class="button" title="Save Project" alt="Save" />
 				<img src="icons/load.svg" id="load" class="button" title="Load Project" alt="Load" />
 				<img src="icons/help.png" id="info" class="button" title="Help / Information / Tutorial" alt="Info" />
-				<img src="icons/settings.svg" id="settings" class="button" title="Options" alt="settings" />
+				<img src="icons/settings.svg" id="settings" class="button" title="Options" alt="Settings" />
 			</div>
 		</div>
 		<div id="nodebarContainer">
@@ -164,7 +166,7 @@
 			</div>
 		</div>
 		<div id="canvasContainer">
-			<canvas id="canvas" width="10" height="10"></canvas>
+			<canvas id="canvas" width="0" height="0"></canvas>
 			<p id="debug" class="hidden"></p>
 			<div id="place">
 				<div id="place1" class="placeOpt">
