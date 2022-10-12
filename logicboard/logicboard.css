@@ -43,6 +43,7 @@ input[type=text], input[type=number] {
 
 .disabled {
 	opacity:0.2;
+	cursor:default !important;
 }
 
 .redBlink {
@@ -52,6 +53,10 @@ input[type=text], input[type=number] {
 .redFade {
 	background-color:#FEFEFE;
 	transition:background-color 0.8s;
+}
+
+.noFocus {
+	pointer-events:none;
 }
 
 .slider {
@@ -434,4 +439,12 @@ input[type=text], input[type=number] {
 #popupInput {
 	margin-top:8px;
 	width:calc(100% - 4px);
+}
+
+.cursor_move {
+	cursor:move;
+}
+
+.cursor_click {
+	cursor:pointer;
 }

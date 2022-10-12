@@ -52,7 +52,7 @@
 				<h1>Upload Project</h1>
 				<input type="file" id="inputFile" accept=".lgb" style="display:none;">
 				<label for="inputFile" id="labelFile">Choose file...</label>
-				<p style="margin-top:50px;">or paste in data manually:</p>
+				<p style="margin-top:50px;">...or paste in data manually:</p>
 				<input type="text" id="pasteImport" >
 				<input type="button" id="pasteButton" value="LOAD" style="margin-left:5px;">
 			</div>
@@ -79,6 +79,10 @@
 					<tr>
 						<td>Track view position with UNDO</td>
 						<td><div id="undoSlider" class="slider"><div></div></div></td>
+					</tr>
+					<tr id="mobileAlign" class="hidden">
+						<td>Auto-Align dragged objects</td>
+						<td><div id="alignSlider" class="slider"><div></div></div></td>
 					</tr>
 				</table>
 				<br />
@@ -111,33 +115,33 @@
 		</div>
 		<div id="panel">
 			<div id="StopControls" class="hidden">
-				<img src="icons/stop.png" id="stop" class="button" title="STOP" alt="Stop Simulation" />
-				<img src="icons/pause.png" id="pause" class="button" title="Pause / Continue" alt="Pause/Continue Simulation" />
-				<img src="icons/step.png" id="step" class="button disabled" title="Step" alt="Step" />
+				<img src="icons/stop.svg" id="stop" class="button" title="STOP" alt="Stop Simulation" />
+				<img src="icons/pause.svg" id="pause" class="button" title="Pause / Continue" alt="Pause/Continue Simulation" />
+				<img src="icons/step.svg" id="step" class="button disabled" title="Step" alt="Step" />
 			</div>
 			<div id="StartControls">
-				<img src="icons/start.png" id="start" class="button" title="START Simulation" alt="Start Simulation" />
+				<img src="icons/start.svg" id="start" class="button" title="START Simulation" alt="Start Simulation" />
 				<img src="icons/undo.png" id="undo" class="button disabled" title="Undo" alt="Undo" />
 				<img src="icons/redo.png" id="redo" class="button disabled" title="Redo" alt="Redo" />
 			</div>
 			<div id="MoveControls">
-				<img src="icons/left.png" id="move_left" class="button" title="Move Left" alt="Move left" />
+				<img src="icons/left.svg" id="move_left" class="button" title="Move Left" alt="Move left" />
 				<img src="icons/up.svg" id="move_up" class="button" title="Move Up" alt="Move up" />
-				<img src="icons/right.png" id="move_right" class="button" title="Move Right" alt="Move right" />
 				<img src="icons/down.svg" id="move_down" class="button" title="Move Down" alt="Move down" />
-				<img src="icons/zoom.png" id="zoom" class="button" title="Zoom+" alt="Zoom+" />
-				<img src="icons/unzoom.png" id="unzoom" class="button" title="Zoom-" alt="Zoom-" />
+				<img src="icons/right.svg" id="move_right" class="button" title="Move Right" alt="Move right" />
+				<img src="icons/zoom.svg" id="zoom" class="button" title="Zoom+" alt="Zoom+" />
+				<img src="icons/unzoom.svg" id="unzoom" class="button" title="Zoom-" alt="Zoom-" />
 			</div>
 			<div id="EditControls">
-				<img src="icons/select.png" id="select" class="button" title="Select Objects" alt="Selection" />
-				<img src="icons/edit.png" id="edit" class="button" title="Edit Object" alt="Edit" />
+				<img src="icons/select.svg" id="select" class="button" title="Select Objects" alt="Selection" />
+				<img src="icons/edit.svg" id="edit" class="button" title="Edit Object" alt="Edit" />
 				<img src="icons/delete.png" id="delete" class="button" title="Delete Object" alt="Delete" />
 				<img src="icons/replace.png" id="replace" class="button" title="Replace Object" alt="Replace" />
 			</div>
 			<div id="Options">
-				<img src="icons/save.png" id="save" class="button" title="Save Project" alt="Save" />
-				<img src="icons/load.png" id="load" class="button" title="Load Project" alt="Load" />
-				<img src="icons/new.png" id="new" class="button" title="New Project" alt="New" />
+				<img src="icons/new.svg" id="new" class="button" title="New Project" alt="New" />
+				<img src="icons/save.svg" id="save" class="button" title="Save Project" alt="Save" />
+				<img src="icons/load.svg" id="load" class="button" title="Load Project" alt="Load" />
 				<img src="icons/help.png" id="info" class="button" title="Help / Information / Tutorial" alt="Info" />
 				<img src="icons/settings.svg" id="settings" class="button" title="Options" alt="settings" />
 			</div>
