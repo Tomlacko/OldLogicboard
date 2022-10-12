@@ -262,6 +262,8 @@ $(document).ready(function() {
 	var globalY = 0;
 	var realX = 0;
 	var realY = 0;
+	var clipboardX = 0;
+	var clipboardY = 0;
 	var dragIds = [];
 	var tabID = 0;
 	var dragging = false;
@@ -597,6 +599,7 @@ $(document).ready(function() {
 	//show load project
 	$("#load").on("click", function() {
 		if(state!=="edit") stopSimulation();
+		if(lineStop() || selectStop()) redraw();
 		$("#overlay, #menu_load").removeClass("hidden");
 		$("#pasteImport").focus();
 		setTimeout(function() {$("#pasteImport").select();}, 1);
@@ -605,6 +608,7 @@ $(document).ready(function() {
 	//show save project
 	$("#save").on("click", function() {
 		if(state!=="edit") stopSimulation();
+		if(lineStop() || selectStop()) redraw();
 		try {
 			$("#exportSave").val(getSave());
 			$("#overlay, #menu_save").removeClass("hidden");
@@ -1053,6 +1057,7 @@ $(document).ready(function() {
 		//82=r, 17=ctrl, 70=f, 71=g, 192=~, 16=shift, 46=delete, 27=ESC, 13=ENTER, 32=Space, 9=TAB, 109=-, 107=+, 69=e, 81=q, 89=y, 90=z, 73=i, 112=F1, 80=p, 67=c, 86=v, 88=x
 		//w=87 a=65 s=83 d=68  -  up=38 left=37 down=40 right=39
 		var keyID = parseInt(key.which,10);
+		//console.log(keyID);
 		
 		var lastSHIFT = holdingSHIFT;
 		if(keyID===17) holdingCTRL = true;
@@ -1097,13 +1102,12 @@ $(document).ready(function() {
 				addUndo();
 				redraw();
 			}
-		}//KEY F - quick new line
-		else if(keyID===70 && state==="edit" && !holdingClick && lineLast!==false && selected==="line") {
-			lineStart = lineLast;
-			lineStartActivate();
-			redraw();
+		}//KEY Pause/Break - Print debug
+		else if(keyID===19) {
+			key.preventDefault();
+			console.log(nodes, clipboardNodes, selectedNodes);
 		}//KEY F1 - show help
-		else if(keyID===112) {
+		else if(keyID===112 && !holdingClick) {
 			key.preventDefault();
 			$("#info").trigger("click");
 		}//KEY CTRL+A - select all
@@ -1115,7 +1119,7 @@ $(document).ready(function() {
 				selectedNodes.push(i);
 			}
 			redraw();
-		}//KEY CTRL+I - invert selection
+		}//KEY I - invert selection
 		else if(keyID===73 && !holdingClick && state==="edit" && selectedNodes.length>0) {
 			selectedNodes = [];
 			for(var i=0; i<selection.length; i++) {
@@ -1123,6 +1127,26 @@ $(document).ready(function() {
 				selection[i]=!selection[i];
 			}
 			if(selectedNodes.length===0) selectionCalcel();
+			redraw();
+		}//KEY C - copy selection to clipboard
+		else if(keyID===67 && state==="edit" && !holdingClick) {
+			clipboardCopy();
+		}//KEY V - paste from clipboard
+		else if(keyID===86 && state==="edit" && !holdingClick) {
+			clipboardPaste();
+		}//KEY X - cut selection to clipboard
+		else if(keyID===88 && state==="edit" && !holdingClick) {
+			clipboardCopy();
+			selectionDelete();
+			addUndo();
+			redraw();
+		}//KEY CTRL+S - save
+		else if(keyID===83 && !holdingClick) {
+			$("#save").trigger("click");
+		}//KEY F - quick new line
+		else if(keyID===70 && state==="edit" && !holdingClick && lineLast!==false && selected==="line") {
+			lineStart = lineLast;
+			lineStartActivate();
 			redraw();
 		}//KEY G - toggle grid visible
 		else if(keyID===71) {
@@ -1151,11 +1175,21 @@ $(document).ready(function() {
 			redraw();
 		}//KEY R - replace object/line
 		else if(keyID===82 && !holdingClick && state==="edit") {
-			if(obj!==false) replaceObj(obj);
+			if(obj!==false && selectedNodes.length>0 && selection[obj]) {
+				if(!selectionReplace()) return;
+			}
+			else if(obj!==false) {
+				if(!replaceObj(obj)) return;
+			}
 			else {
 				var clickedLine = getClickedLine(canX, canY);
-				if(clickedLine!==false) replaceLine(clickedLine, canX, canY);
+				if(clickedLine!==false) {
+					if(!replaceLine(clickedLine, canX, canY)) return;
+				}
+				else return;
 			}
+			addUndo();
+			redraw();
 		}//KEY WASD / up,left,down,right - PAN
 		else if([87, 65, 83, 68, 38, 37, 40, 39].includes(keyID)) {
 			var panAmount = gridSpacing/zoom;
@@ -1573,7 +1607,10 @@ $(document).ready(function() {
 		$("#popupConfirm").on("click", callbackConfirm);
 		if(callbackCancel==undefined) $("#popupCancel").on("click", popupClose);
 		else $("#popupCancel").on("click", callbackCancel);
-		setTimeout(function() {$("#popupInput").focus();}, 5);
+		setTimeout(function() {
+			$("#popupInput").focus();
+			$("#popupInput").select();
+		}, 5);
 	}
 	
 	//Display POPUP confirm
@@ -1866,18 +1903,16 @@ $(document).ready(function() {
 		if(selectedNodes.length===0) return false;
 		clipboardNodes = [];
 		clipboardLines = [];
+		var newAssign = {};
+		var nodesCopy = JSON.parse(JSON.stringify(nodes));
+		//var linesCopy = JSON.parse(JSON.stringify(lines));
 		for(var i=0; i<selectedNodes.length; i++) {
-			clipboardNodes.push(nodes[selectedNodes[i]]);
+			clipboardNodes.push(nodesCopy[selectedNodes[i]]);
+			newAssign[selectedNodes[i]] = i;
 		}
 		for(var i=0; i<lines.length; i++) {
-			if(selection[lines[i].a] && selection[lines[i].b]) clipboardLines.push(lines[i]);
+			if(selection[lines[i].a] && selection[lines[i].b]) clipboardLines.push({a:newAssign[lines[i].a], b:newAssign[lines[i].b]});
 		}
-	}
-	
-	//PASTE from CLIPBOARD
-	function clipboardPaste() {
-		if(clipboardNodes.length===0) return false;
-		selectionCancel();
 		var minX = clipboardNodes[0].x;
 		var minY = clipboardNodes[0].y;
 		var maxX = clipboardNodes[0].x;
@@ -1888,13 +1923,46 @@ $(document).ready(function() {
 			if(clipboardNodes[i].x > maxX) maxX = clipboardNodes[i].x;
 			if(clipboardNodes[i].y > maxY) maxY = clipboardNodes[i].y;
 		}
-		var halfX = minX+(maxX-minX)/2;
-		var halfY = minY+(maxY-minY)/2;
-		for(var i=0; i<clipboardNodes.length; i++) {
-			clipboardNodes[i].x = realX+clipboardNodes[i].x-halfX;
-			clipboardNodes[i].y = realY+clipboardNodes[i].y-halfY;
-			nodes.push(clipboardNodes[i]);
+		clipboardX = minX+(maxX-minX)/2;
+		clipboardY = minY+(maxY-minY)/2;
+		return true;
+	}
+	
+	//PASTE from CLIPBOARD
+	function clipboardPaste() {
+		if(clipboardNodes.length===0) return false;
+		selectionCancel();
+		var newNodes = JSON.parse(JSON.stringify(clipboardNodes));
+		var newLines = JSON.parse(JSON.stringify(clipboardLines));
+		for(var i=0; i<nodes.length; i++) {
+			selection.push(false);
 		}
+		var align = (holdingSHIFT || alignActivated);
+		var half = gridSpacing/2;
+		for(var i=0; i<newNodes.length; i++) {
+			if(align) {
+				newNodes[i].x = Math.round((realX+newNodes[i].x-clipboardX)/half)*half;
+				newNodes[i].y = Math.round((realY+newNodes[i].y-clipboardY)/half)*half;
+			}
+			else {
+				newNodes[i].x = realX+newNodes[i].x-clipboardX;
+				newNodes[i].y = realY+newNodes[i].y-clipboardY;
+			}
+			selectedNodes.push(selection.length);
+			selection.push(true);
+		}
+		var len = nodes.length;
+		for(var i=0; i<newLines.length; i++) {
+			newLines[i].a+=len;
+			newLines[i].b+=len;
+		}
+		nodes = nodes.concat(newNodes);
+		lines = lines.concat(newLines);
+		if(selected==="select") $("#select").trigger("click");
+		tabID=0;
+		addUndo();
+		redraw();
+		return true;
 	}
 	
 	//SAVE - move pointer
@@ -1927,11 +1995,10 @@ $(document).ready(function() {
 				}
 			}
 			deleteObj(id);
-			addUndo();
 		}
 		else {
 			var newObj = createNewObj(selectedNode, nodes[id].x, nodes[id].y);
-			if(newObj===false) return;
+			if(newObj===false) return false;
 			if(!design[newObj.t].canStartLine || !design[newObj.t].canEndLine) {
 				var i=0;
 				while(i<lines.length) {
@@ -1940,25 +2007,33 @@ $(document).ready(function() {
 				}
 			}
 			nodes.splice(id, 1, newObj);
-			tabID=0;
-			addUndo();
 		}
-		redraw();
+		tabID=0;
+		return true;
 	}
 	
 	//Replace line
 	function replaceLine(line, x, y) {
-		if(selectedNode==="line") return;
+		if(selectedNode==="line") return false;
 		var newObj = createNewObj(selectedNode, x, y);
 		var startObj = lines[line].a;
 		var endObj = lines[line].b;
 		lines.splice(line, 1);
 		nodes.push(newObj);
+		if(selectedNodes.length>0) selection.push(false);
 		if(design[newObj.t].canEndLine) lines.push({a:startObj, b:nodes.length-1});
 		if(design[newObj.t].canStartLine) lines.push({a:nodes.length-1, b:endObj});
 		tabID=0;
-		addUndo();
-		redraw();
+		return true;
+	}
+	
+	//Replace selection
+	function selectionReplace() {
+		for(var i=0; i<selectedNodes.length; i++) {
+			if(!replaceObj(selectedNodes[i])) return false;
+		}
+		if(selectedNode==="line") selectionCancel();
+		return true;
 	}
 	
 	//Find duplicate line - prevent creating multiple identical lines
@@ -2003,6 +2078,11 @@ $(document).ready(function() {
 	
 	//CREATE New Object
 	function createNewObj(type, x, y) {
+		if(type!==12 && (holdingSHIFT || alignActivated)) {
+			var half = gridSpacing/2;
+			x = Math.round(x/half)*half;
+			y = Math.round(y/half)*half;
+		}
 		switch(type) {
 			case 1://SWITCH
 				return {t:1, n:formatText($("#place"+type+" input").val(), "Switch"), p:false, x:x, y:y};
@@ -2056,11 +2136,15 @@ $(document).ready(function() {
 				alert("Not yet implemented!");
 				return false;
 				//var note = prompt();
-				//nodes.push({t:11, p:false, n:note, x:x, y:y});
+				//nodes.push({t:11, p:false, f:false, n:note, x:x, y:y});
 				break;
 			case 12://OUTPUT LAMP
-				var half = gridSpacing/2;
-				return {t:12, p:false, n:formatText($("#place"+type+" input").val()), x:Math.round((x+half)/gridSpacing)*gridSpacing-half, y:Math.round((y+half)/gridSpacing)*gridSpacing-half};
+				if(holdingSHIFT || alignActivated) {
+					var half = gridSpacing/2;
+					x = Math.round((x+half)/gridSpacing)*gridSpacing-half;
+					y = Math.round((y+half)/gridSpacing)*gridSpacing-half;
+				}
+				return {t:12, p:false, n:formatText($("#place"+type+" input").val()), x:x, y:y};
 				break;
 			case 13://TEXT
 				var txt = formatText($("#place"+type+" input").val())
@@ -2094,6 +2178,8 @@ $(document).ready(function() {
 		}
 		tabID=0;
 	}
+	
+	//DELETE selection
 	function selectionDelete() {
 		for(var i=0; i<selectedNodes.length; i++) {
 			deleteObj(selectedNodes[i]);
@@ -2476,9 +2562,17 @@ $(document).ready(function() {
 				}
 			}//REPLACE
 			else if(selected==="replace") {
-				if(clickResult!==false) replaceObj(clickResult);
-				else if(clickResultLine!==false) replaceLine(clickResultLine, x, y);
+				if(clickResult!==false && selectedNodes.length>0 && selection[clickResult]) {
+					if(!selectionReplace()) return;
+				}
+				else if(clickResult!==false) {
+					if(!replaceObj(clickResult)) return;
+				}
+				else if(clickResultLine!==false) {
+					if(!replaceLine(clickResultLine, x, y)) return;
+				}
 				else return;
+				addUndo();
 			}
 		}
 		redraw();
