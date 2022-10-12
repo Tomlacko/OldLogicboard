@@ -246,7 +246,7 @@ $(window).load(function() {
 	/*-----------------------------SETUP-------------------------------------------------------------*/
 	
 	var mobile = isMobile();
-	var fileVersion = 5;
+	var fileVersion = 6;
 	var canvas = document.getElementById("canvas");
 	var ctx = canvas.getContext("2d");
 	var height = 0;
@@ -509,11 +509,10 @@ $(window).load(function() {
 	];
 	
 	setTimeout(function() {$(window).trigger("resize");}, 50);
-	if(mobile) $("#mobileAlign").removeClass("hidden");
 	addUndo();
 	
 	/*
-	TAGS:   r,x,y, *s=shape*, n=name/note/text, t=type, p=powered, a=startID, b=endID, d=delay, c=countdown, f=fired, q=startPowered, w=width(text)
+	TAGS:   r,x,y, *s=shape*, n=name/note/text, t=type, p=powered, a=startID, b=endID, d=delay, c=countdown, o=delayOutputType, f=fired, q=startPowered, w=width(text)
 	
 	SHAPES: c=circle, r=rect=rectangle, o=oval
 	
@@ -1830,7 +1829,13 @@ $(window).load(function() {
 					}
 					else {
 						if(nodes[i].c>=nodes[i].d) nodes[i].p = false;
-						else nodes[i].c++;
+						else {
+							if(nodes[i].o===true) {
+								nodes[i].c = nodes[i].d;
+								nodes[i].p = false;
+							}
+							else nodes[i].c++;
+						}
 					}
 					break;
 				case 8://TOGGLE
@@ -2186,14 +2191,15 @@ $(window).load(function() {
 				return {t:6, p:pwr, q:pwr, x:x, y:y};
 				break;
 			case 7://DELAY
-				var delay=formatNum($("#place"+type+" input").val());
+				var delay = formatNum($("#place"+type+" input").val());
+				var outPulse = $("#place"+type+" .slider").hasClass("activated");
 				if(delay===false || delay<0 || delay>3600000) {
 					popupMsg("Invalid number!");
 					return false;
 				}
 				else {
 					delay = Math.round(delay);
-					return {t:7, p:false, d:delay, c:delay, x:x, y:y};
+					return {t:7, p:false, d:delay, c:delay, o:outPulse, x:x, y:y};
 				}
 				break;
 			case 8://TOGGLE

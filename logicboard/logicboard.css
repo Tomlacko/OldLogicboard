@@ -34,7 +34,7 @@ h2 {
 	font-size:24px;
 }
 
-p, strong, button, td {
+p, strong, button, td, li, strong, h5 {
 	font-size:14px;
 }
 
@@ -376,24 +376,32 @@ input[type=text], input[type=number] {
 	text-align:right;
 }
 
-#place p:first-child {
+#place h5 {
 	color:#8AF;
 	cursor:default;
 	font-weight:bold;
 	text-shadow:1px 1px 3px #222;
 	margin-bottom:5px;
 	text-align:left;
+	font-size:18px;
 }
 
-#place p:not(:first-child) {
+#place p {
 	color:#DDD;
 	display:inline-block;
 	margin-right:5px;
+	margin-top:2px;
 	cursor:default;
+	clear:left;
+}
+
+#place > div > *:not(h5) {
+	float:left;
 }
 
 .placeOpt input {
-	width:134px;
+	width:100px;
+	margin-bottom:3px;
 }
 
 .placeOpt input[type=number] {
