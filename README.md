@@ -1,5 +1,5 @@
-# OldLogicboard
-Logic circuit editor and simulator I made in JavaScript in 2016-2017.
+# Logicboard (old version)
+Logic circuit editor and simulator I've made in JavaScript in 2016-2017.
 
 **Visit https://github.com/Tomlacko/Logicboard for a complete 2022 remake with much higher code quality, better usability and more features.**
 
@@ -24,7 +24,7 @@ For this old version, expect a lot of jank and bugs, as this was one of my first
 ---
 
 ### Example circuits:
-https://github.com/Tomlacko/OldLogicboard/tree/versions/SAVES
+https://github.com/Tomlacko/OldLogicboard/tree/main/SAVES
 
 (The most interesting one to try would be the computer I have made.)
 
