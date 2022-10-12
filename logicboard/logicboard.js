@@ -230,8 +230,8 @@ $(window).load(function() {
 	
 	//resize canvas to window
 	$(window).on("resize", function() {
-		ctx.canvas.height = Math.max($(window).height()-($("#panel").outerHeight()+$("#nodebarContainer").outerHeight()), 71);//137
-		ctx.canvas.width = Math.max($(window).width(), 10);
+		canvas.height = Math.max($(window).height()-($("#panel").outerHeight()+$("#nodebarContainer").outerHeight()), 71);//137
+		canvas.width = Math.max($(window).width(), 10);
 		width = canvas.width;
 		height = canvas.height;
 		midX = width/2;
@@ -1346,7 +1346,10 @@ $(window).load(function() {
 		}//HOTKEYS 0-9
 		else if(keyID>=48 && keyID<=57 && state==="edit" && !holdingClick) {
 			if(keyID===48) $("#line").trigger("click");
-			else $("#"+(keyID-48)).trigger("click");
+			else if(keyID===49) $("#edit").trigger("click");
+			else if(keyID===50) $("#delete").trigger("click");
+			else if(keyID===51) $("#select").trigger("click");
+			else if(keyID===52) $("#replace").trigger("click");
 		}
 	});
 	
